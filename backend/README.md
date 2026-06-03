@@ -43,19 +43,15 @@ JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=60
 ```
 
-### 4. Crear la base de datos
+### 4. Ejecutar el schema
 
-En MySQL:
-
-```sql
-CREATE DATABASE ticketing;
-```
-
-Luego ejecutar el schema:
+> Si la base de datos ya existe (ej: creada desde DataGrip), saltar el `CREATE DATABASE` y solo correr el schema para crear las tablas.
 
 ```bash
 mysql -u root -p ticketing < sql/schema.sql
 ```
+
+O ejecutar `sql/schema.sql` directamente desde DataGrip.
 
 ### 5. Levantar el servidor
 
