@@ -1,11 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from core.config import settings
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Roles válidos (deben coincidir exactamente con los valores en la BD) -------------
@@ -25,7 +25,7 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-# JWT ------------------------------------------------------------------------------ 
+# JWT ------------------------------------------------------------------------------
 def create_access_token(user_id: int, role: str) -> str:
     """
     Recibe explícitamente user_id y role para evitar que el llamador
@@ -37,7 +37,7 @@ def create_access_token(user_id: int, role: str) -> str:
     payload = {
         "sub": str(user_id),
         "role": role,
-        "exp": datetime.utcnow() + timedelta(minutes=settings.JWT_EXPIRE_MINUTES),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_EXPIRE_MINUTES),
     }
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
@@ -53,6 +53,7 @@ def decode_token(token: str) -> dict:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido o expirado",
+            headers={"WWW-Authenticate": "Bearer"},
         ) from e
 
 
@@ -61,6 +62,13 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> dict:
     """Valida el token y devuelve {"user_id": int, "role": str}."""
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No autenticado",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     payload = decode_token(credentials.credentials)
 
     user_id = payload.get("sub")
@@ -70,9 +78,17 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido: faltan campos obligatorios",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return {"user_id": int(user_id), "role": role}
+    try:
+        return {"user_id": int(user_id), "role": role}
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido: user_id malformado",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 # Dependencias de rol -----------------------------------------------------------------
