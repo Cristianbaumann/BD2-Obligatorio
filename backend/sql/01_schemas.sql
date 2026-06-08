@@ -1,8 +1,34 @@
-CREATE DATABASE IF NOT EXISTS ticketing_db
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
+-- =============================================================
+-- LIMPIEZA PREVIA (permite re-ejecutar el script desde 0)
+-- =============================================================
 
-USE ticketing_db;
+
+DROP VIEW  IF EXISTS vw_cobertura_funcionarios;
+DROP VIEW  IF EXISTS vw_eventos_mas_vendidos;
+DROP VIEW  IF EXISTS vw_mayores_compradores;
+DROP VIEW  IF EXISTS vw_disponibilidad;
+
+DROP TABLE IF EXISTS FuncionarioSectorEvento;
+DROP TABLE IF EXISTS Validacion;
+DROP TABLE IF EXISTS Dispositivo;
+DROP TABLE IF EXISTS Qr;
+DROP TABLE IF EXISTS Transferencia;
+DROP TABLE IF EXISTS Entrada;
+DROP TABLE IF EXISTS EventoSector;
+DROP TABLE IF EXISTS Venta;
+DROP TABLE IF EXISTS Evento;
+DROP TABLE IF EXISTS ComisionHistorica;
+DROP TABLE IF EXISTS Estado;
+DROP TABLE IF EXISTS Equipo;
+DROP TABLE IF EXISTS Sector;
+DROP TABLE IF EXISTS Estadio;
+DROP TABLE IF EXISTS UsuarioFinal;
+DROP TABLE IF EXISTS Admin;
+DROP TABLE IF EXISTS Funcionario;
+DROP TABLE IF EXISTS UsuarioTelefono;
+DROP TABLE IF EXISTS Usuario;
+
+
 
 -- =============================================================
 -- MÓDULO 1: USUARIOS Y PERFILES
@@ -370,16 +396,10 @@ CREATE TABLE FuncionarioSectorEvento (
 -- =============================================================
 -- ÍNDICES DE PERFORMANCE
 -- =============================================================
-
-CREATE INDEX idx_entrada_titular   ON Entrada(titular_mail);
-CREATE INDEX idx_entrada_venta     ON Entrada(venta_id);
-CREATE INDEX idx_entrada_evento    ON Entrada(evento_id);
-CREATE INDEX idx_venta_usuario     ON Venta(usuario_mail);
-CREATE INDEX idx_venta_estado      ON Venta(estado_id);
-CREATE INDEX idx_transf_entrada    ON Transferencia(entrada_id);
-CREATE INDEX idx_transf_origen     ON Transferencia(origen_mail);
-CREATE INDEX idx_transf_destino    ON Transferencia(destino_mail);
-CREATE INDEX idx_evento_estadio    ON Evento(estadio_pais, estadio_localidad, estadio_calle, estadio_numero, fecha);
+--
+-- En MySQL, los índices necesarios para las claves foráneas se crean
+-- automáticamente cuando hace falta. Se dejan fuera los CREATE INDEX
+-- explícitos para no depender del privilegio INDEX en el usuario remoto.
 
 -- =============================================================
 -- VISTAS
