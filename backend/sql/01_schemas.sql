@@ -1,28 +1,47 @@
-CREATE DATABASE IF NOT EXISTS ticketing_db
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
+-- =============================================================
+-- LIMPIEZA PREVIA (permite re-ejecutar el script desde 0)
+-- =============================================================
 
-USE ticketing_db;
+DROP VIEW  IF EXISTS vw_cobertura_funcionarios;
+DROP VIEW  IF EXISTS vw_eventos_mas_vendidos;
+DROP VIEW  IF EXISTS vw_mayores_compradores;
+DROP VIEW  IF EXISTS vw_disponibilidad;
+
+DROP TABLE IF EXISTS FuncionarioSectorEvento;
+DROP TABLE IF EXISTS Validacion;
+DROP TABLE IF EXISTS Dispositivo;
+DROP TABLE IF EXISTS Qr;
+DROP TABLE IF EXISTS Transferencia;
+DROP TABLE IF EXISTS Entrada;
+DROP TABLE IF EXISTS EventoSector;
+DROP TABLE IF EXISTS Venta;
+DROP TABLE IF EXISTS Evento;
+DROP TABLE IF EXISTS ComisionHistorica;
+DROP TABLE IF EXISTS Estado;
+DROP TABLE IF EXISTS Equipo;
+DROP TABLE IF EXISTS Sector;
+DROP TABLE IF EXISTS Estadio;
+DROP TABLE IF EXISTS UsuarioFinal;
+DROP TABLE IF EXISTS Admin;
+DROP TABLE IF EXISTS Funcionario;
+DROP TABLE IF EXISTS UsuarioTelefono;
+DROP TABLE IF EXISTS Usuario;
+
 
 -- =============================================================
 -- MÓDULO 1: USUARIOS Y PERFILES
 -- Generalización (t,e): Usuario → { Admin, Funcionario, UsuarioFinal }
 -- =============================================================
 
--- -------------------------------------------------------------
--- 1.1 USUARIO  (PK = mail, según MER)
--- -------------------------------------------------------------
 CREATE TABLE Usuario (
     mail                VARCHAR(255) NOT NULL,
     password_hash       VARCHAR(255) NOT NULL,
     rol                 ENUM('ADMIN','FUNCIONARIO','USUARIO_FINAL') NOT NULL,
 
-    -- Atributo compuesto: Documento (Pais + Tipo + Numero — único globalmente)
     doc_pais            VARCHAR(100) NOT NULL,
-    doc_tipo            VARCHAR(50)  NOT NULL,  -- CI, DNI, PASAPORTE, etc.
+    doc_tipo            VARCHAR(50)  NOT NULL,
     doc_numero          VARCHAR(50)  NOT NULL,
 
-    -- Atributo compuesto: Direccion (Pais + Localidad + Calle + Numero + CodPostal)
     dir_pais            VARCHAR(100) NOT NULL,
     dir_localidad       VARCHAR(150) NOT NULL,
     dir_calle           VARCHAR(200) NOT NULL,
@@ -33,9 +52,6 @@ CREATE TABLE Usuario (
     UNIQUE KEY uq_documento (doc_pais, doc_tipo, doc_numero)
 ) ENGINE=InnoDB;
 
--- -------------------------------------------------------------
--- 1.2 USUARIO_TELEFONO  (atributo multivalorado Telefono*)
--- -------------------------------------------------------------
 CREATE TABLE UsuarioTelefono (
     usuario_mail    VARCHAR(255) NOT NULL,
     telefono        VARCHAR(30)  NOT NULL,
@@ -44,9 +60,7 @@ CREATE TABLE UsuarioTelefono (
         REFERENCES Usuario(mail) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- -------------------------------------------------------------
--- 1.3 ADMIN  (especialización — atributo: FechaAsignacionCargo)
--- -------------------------------------------------------------
+-- Atributo pais_sede: jurisdicción geográfica del admin ("Administrador por País Sede")
 CREATE TABLE Admin (
     usuario_mail             VARCHAR(255) NOT NULL,
     pais_sede                VARCHAR(100) NOT NULL,
@@ -56,9 +70,6 @@ CREATE TABLE Admin (
         REFERENCES Usuario(mail) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- -------------------------------------------------------------
--- 1.4 FUNCIONARIO  (especialización — atributo: NumeroDeLegajo)
--- -------------------------------------------------------------
 CREATE TABLE Funcionario (
     usuario_mail    VARCHAR(255) NOT NULL,
     numero_legajo   VARCHAR(50)  NOT NULL,
@@ -68,9 +79,6 @@ CREATE TABLE Funcionario (
         REFERENCES Usuario(mail) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- -------------------------------------------------------------
--- 1.5 USUARIO_FINAL  (especialización — FechaRegistro, EstadoVerificacion)
--- -------------------------------------------------------------
 CREATE TABLE UsuarioFinal (
     usuario_mail         VARCHAR(255) NOT NULL,
     fecha_registro       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -80,13 +88,11 @@ CREATE TABLE UsuarioFinal (
         REFERENCES Usuario(mail) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+
 -- =============================================================
 -- MÓDULO 2: INFRAESTRUCTURA
 -- =============================================================
 
--- -------------------------------------------------------------
--- 2.1 ESTADIO  (PK = dirección compuesta, según MER)
--- -------------------------------------------------------------
 CREATE TABLE Estadio (
     dir_pais        VARCHAR(100) NOT NULL,
     dir_localidad   VARCHAR(150) NOT NULL,
@@ -97,32 +103,27 @@ CREATE TABLE Estadio (
     PRIMARY KEY (dir_pais, dir_localidad, dir_calle, dir_numero)
 ) ENGINE=InnoDB;
 
--- -------------------------------------------------------------
--- 2.2 SECTOR  (entidad débil de Estadio — relación "Tiene" 1:N)
---     Atributos: TipoSector (clave parcial), Capacidad, Costo
--- -------------------------------------------------------------
+-- Sector: entidad con id propio — costo NO está aquí, varía por evento (ver EventoSector)
 CREATE TABLE Sector (
-    tipo_sector         VARCHAR(10)   NOT NULL,
+    id                  INT           NOT NULL AUTO_INCREMENT,
     estadio_pais        VARCHAR(100)  NOT NULL,
     estadio_localidad   VARCHAR(150)  NOT NULL,
     estadio_calle       VARCHAR(200)  NOT NULL,
     estadio_numero      VARCHAR(20)   NOT NULL,
+    nombre              VARCHAR(100)  NOT NULL,
     capacidad           INT           NOT NULL CHECK (capacidad > 0),
-    costo               DECIMAL(10,2) NOT NULL CHECK (costo >= 0),
-    PRIMARY KEY (tipo_sector, estadio_pais, estadio_localidad, estadio_calle, estadio_numero),
+    PRIMARY KEY (id),
     CONSTRAINT fk_sector_estadio FOREIGN KEY
         (estadio_pais, estadio_localidad, estadio_calle, estadio_numero)
         REFERENCES Estadio(dir_pais, dir_localidad, dir_calle, dir_numero)
         ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+
 -- =============================================================
 -- MÓDULO 3: EQUIPOS Y EVENTOS
 -- =============================================================
 
--- -------------------------------------------------------------
--- 3.1 EQUIPO  (atributos: Id, Nombre)
--- -------------------------------------------------------------
 CREATE TABLE Equipo (
     id      CHAR(36)     NOT NULL DEFAULT (UUID()),
     nombre  VARCHAR(150) NOT NULL,
@@ -130,10 +131,8 @@ CREATE TABLE Equipo (
     UNIQUE KEY uq_equipo_nombre (nombre)
 ) ENGINE=InnoDB;
 
--- -------------------------------------------------------------
--- 3.2 EVENTO  (clave parcial: fecha, según MER)
---     Relaciones Local y Visitante hacia Equipo
--- -------------------------------------------------------------
+-- Relación "Ocurre" (N:1) Evento → Estadio: necesaria para UNIQUE(estadio, fecha)
+-- que impide a nivel DB dos eventos en el mismo recinto a la misma hora
 CREATE TABLE Evento (
     id                   CHAR(36)     NOT NULL DEFAULT (UUID()),
     fecha                DATETIME     NOT NULL,
@@ -152,37 +151,27 @@ CREATE TABLE Evento (
     CONSTRAINT fk_evento_estadio   FOREIGN KEY
         (estadio_pais, estadio_localidad, estadio_calle, estadio_numero)
         REFERENCES Estadio(dir_pais, dir_localidad, dir_calle, dir_numero),
-    -- No superposición: un estadio no puede tener dos eventos a la misma hora
     UNIQUE KEY uq_estadio_fecha
         (estadio_pais, estadio_localidad, estadio_calle, estadio_numero, fecha)
 ) ENGINE=InnoDB;
 
--- -------------------------------------------------------------
--- 3.3 EVENTO_SECTOR  (relación "Esta habilitado" N:N — Evento ↔ Sector)
---     Agregación a la que Entrada es débil
--- -------------------------------------------------------------
+-- Costo vive aquí: precio varía por evento/fase (grupos ≠ semifinal ≠ final)
 CREATE TABLE EventoSector (
-    evento_id           CHAR(36)     NOT NULL,
-    tipo_sector         VARCHAR(10)  NOT NULL,
-    estadio_pais        VARCHAR(100) NOT NULL,
-    estadio_localidad   VARCHAR(150) NOT NULL,
-    estadio_calle       VARCHAR(200) NOT NULL,
-    estadio_numero      VARCHAR(20)  NOT NULL,
-    PRIMARY KEY (evento_id, tipo_sector, estadio_pais, estadio_localidad, estadio_calle, estadio_numero),
+    evento_id   CHAR(36)      NOT NULL,
+    sector_id   INT           NOT NULL,
+    costo       DECIMAL(10,2) NOT NULL CHECK (costo >= 0),
+    PRIMARY KEY (evento_id, sector_id),
     CONSTRAINT fk_es_evento FOREIGN KEY (evento_id)
         REFERENCES Evento(id) ON DELETE CASCADE,
-    CONSTRAINT fk_es_sector FOREIGN KEY
-        (tipo_sector, estadio_pais, estadio_localidad, estadio_calle, estadio_numero)
-        REFERENCES Sector(tipo_sector, estadio_pais, estadio_localidad, estadio_calle, estadio_numero)
+    CONSTRAINT fk_es_sector FOREIGN KEY (sector_id)
+        REFERENCES Sector(id)
 ) ENGINE=InnoDB;
+
 
 -- =============================================================
 -- MÓDULO 4: VENTAS Y ENTRADAS
 -- =============================================================
 
--- -------------------------------------------------------------
--- 4.1 ESTADO  (tabla de lookup — aparece en MER con ID y Descripcion)
--- -------------------------------------------------------------
 CREATE TABLE Estado (
     id          INT         NOT NULL AUTO_INCREMENT,
     descripcion VARCHAR(50) NOT NULL,
@@ -195,14 +184,13 @@ INSERT INTO Estado (descripcion) VALUES
     ('CONFIRMADA'),
     ('PAGA');
 
--- -------------------------------------------------------------
--- 4.2 COMISION_HISTORICA  (tasa variable en el tiempo)
--- -------------------------------------------------------------
+-- Historial de tasa de comisión — la letra dice "puede variar a lo largo del tiempo"
+-- tasa_comision en Venta guarda el snapshot usado en esa venta
 CREATE TABLE ComisionHistorica (
     id          INT          NOT NULL AUTO_INCREMENT,
     tasa        DECIMAL(5,4) NOT NULL,
     fecha_desde DATE         NOT NULL,
-    fecha_hasta DATE,                   -- NULL = vigente actualmente
+    fecha_hasta DATE,
     PRIMARY KEY (id),
     UNIQUE KEY uq_tasa_vigente (fecha_hasta)
 ) ENGINE=InnoDB;
@@ -210,11 +198,6 @@ CREATE TABLE ComisionHistorica (
 INSERT INTO ComisionHistorica (tasa, fecha_desde, fecha_hasta)
 VALUES (0.0500, '2026-01-01', NULL);
 
--- -------------------------------------------------------------
--- 4.3 VENTA  (relación "asociado" UsuarioFinal → Venta)
---     PK: id UUID
---     FK a Usuario: usuario_mail (propagación del cambio de PK)
--- -------------------------------------------------------------
 CREATE TABLE Venta (
     id              CHAR(36)      NOT NULL DEFAULT (UUID()),
     usuario_mail    VARCHAR(255)  NOT NULL,
@@ -229,42 +212,34 @@ CREATE TABLE Venta (
         REFERENCES Estado(id)
 ) ENGINE=InnoDB;
 
--- -------------------------------------------------------------
--- 4.4 ENTRADA  (entidad débil de la agregación EventoSector)
---     FK a Usuario: titular_mail (propagación del cambio de PK)
--- -------------------------------------------------------------
+-- Entrada débil de la agregación EventoSector
+-- costo: fijado al momento de compra desde EventoSector.costo
+-- titular_mail: se actualiza al aceptar transferencia
 CREATE TABLE Entrada (
-    id                   CHAR(36)      NOT NULL DEFAULT (UUID()),
-    venta_id             CHAR(36)      NOT NULL,
-    titular_mail         VARCHAR(255)  NOT NULL,
-    costo                DECIMAL(10,2) NOT NULL,
-    evento_id            CHAR(36)      NOT NULL,
-    tipo_sector          VARCHAR(10)   NOT NULL,
-    estadio_pais         VARCHAR(100)  NOT NULL,
-    estadio_localidad    VARCHAR(150)  NOT NULL,
-    estadio_calle        VARCHAR(200)  NOT NULL,
-    estadio_numero       VARCHAR(20)   NOT NULL,
-    consumido            BOOLEAN       NOT NULL DEFAULT FALSE,
-    contador_transferencias TINYINT    NOT NULL DEFAULT 0,
+    id           CHAR(36)      NOT NULL DEFAULT (UUID()),
+    venta_id     CHAR(36)      NOT NULL,
+    titular_mail VARCHAR(255)  NOT NULL,
+    costo        DECIMAL(10,2) NOT NULL,
+    evento_id    CHAR(36)      NOT NULL,
+    sector_id    INT           NOT NULL,
+    consumido    BOOLEAN       NOT NULL DEFAULT FALSE,
     PRIMARY KEY (id),
-    CONSTRAINT chk_max_transferencias CHECK (contador_transferencias <= 3),
     CONSTRAINT fk_entrada_venta   FOREIGN KEY (venta_id)
         REFERENCES Venta(id),
     CONSTRAINT fk_entrada_titular FOREIGN KEY (titular_mail)
         REFERENCES Usuario(mail),
-    CONSTRAINT fk_entrada_es      FOREIGN KEY
-        (evento_id, tipo_sector, estadio_pais, estadio_localidad, estadio_calle, estadio_numero)
-        REFERENCES EventoSector(evento_id, tipo_sector, estadio_pais, estadio_localidad, estadio_calle, estadio_numero)
+    CONSTRAINT fk_entrada_es      FOREIGN KEY (evento_id, sector_id)
+        REFERENCES EventoSector(evento_id, sector_id)
 ) ENGINE=InnoDB;
+
 
 -- =============================================================
 -- MÓDULO 5: TRANSFERENCIAS
+-- La tabla Transferencia ES el log histórico de cadena de custodia
+-- Cada fila = un eslabón: quién transfirió, a quién, cuándo, estado
+-- nro en cadena es computable: ROW_NUMBER() OVER (PARTITION BY entrada_id ORDER BY fecha)
 -- =============================================================
 
--- -------------------------------------------------------------
--- 5.1 TRANSFERENCIA  (relación "transfiere entrada" UsuarioFinal ↔ UsuarioFinal)
---     FKs a Usuario: origen_mail y destino_mail
--- -------------------------------------------------------------
 CREATE TABLE Transferencia (
     id              CHAR(36)     NOT NULL DEFAULT (UUID()),
     entrada_id      CHAR(36)     NOT NULL,
@@ -272,7 +247,6 @@ CREATE TABLE Transferencia (
     destino_mail    VARCHAR(255) NOT NULL,
     fecha           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     estado          ENUM('PENDIENTE','ACEPTADA','RECHAZADA') NOT NULL DEFAULT 'PENDIENTE',
-    nro_en_cadena   TINYINT      NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT chk_transf_distintos CHECK (origen_mail <> destino_mail),
     CONSTRAINT fk_transf_entrada FOREIGN KEY (entrada_id)
@@ -283,13 +257,11 @@ CREATE TABLE Transferencia (
         REFERENCES Usuario(mail)
 ) ENGINE=InnoDB;
 
+
 -- =============================================================
 -- MÓDULO 6: QR Y VALIDACIÓN
 -- =============================================================
 
--- -------------------------------------------------------------
--- 6.1 QR  (entidad débil de Entrada — relación "Genera" 1:N)
--- -------------------------------------------------------------
 CREATE TABLE Qr (
     id          CHAR(36)     NOT NULL DEFAULT (UUID()),
     entrada_id  CHAR(36)     NOT NULL,
@@ -303,25 +275,15 @@ CREATE TABLE Qr (
     INDEX idx_qr_entrada_activo (entrada_id, activo)
 ) ENGINE=InnoDB;
 
--- -------------------------------------------------------------
--- 6.2 DISPOSITIVO  (relación "Asociado" 1:N Funcionario → Dispositivo)
---     FK a Funcionario: funcionario_mail
--- -------------------------------------------------------------
 CREATE TABLE Dispositivo (
     id               CHAR(36)     NOT NULL DEFAULT (UUID()),
     funcionario_mail VARCHAR(255) NOT NULL,
-    descripcion      VARCHAR(200),
     activo           BOOLEAN      NOT NULL DEFAULT TRUE,
     PRIMARY KEY (id),
     CONSTRAINT fk_disp_funcionario FOREIGN KEY (funcionario_mail)
         REFERENCES Funcionario(usuario_mail)
 ) ENGINE=InnoDB;
 
--- -------------------------------------------------------------
--- 6.3 VALIDACION  (relación "Validación" Entrada ↔ Dispositivo)
---     Elevada a entidad para auditoría — registra QR, funcionario, timestamp
---     El atributo "Consumido" del MER vive en Entrada.consumido
--- -------------------------------------------------------------
 CREATE TABLE Validacion (
     id               CHAR(36)     NOT NULL DEFAULT (UUID()),
     entrada_id       CHAR(36)     NOT NULL,
@@ -330,7 +292,6 @@ CREATE TABLE Validacion (
     funcionario_mail VARCHAR(255) NOT NULL,
     timestamp_val    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    -- Una entrada no puede validarse dos veces (garantía a nivel DB)
     UNIQUE KEY uq_validacion_entrada (entrada_id),
     CONSTRAINT fk_val_entrada     FOREIGN KEY (entrada_id)
         REFERENCES Entrada(id),
@@ -342,83 +303,41 @@ CREATE TABLE Validacion (
         REFERENCES Funcionario(usuario_mail)
 ) ENGINE=InnoDB;
 
--- -------------------------------------------------------------
--- 6.4 FUNCIONARIO_SECTOR_EVENTO  (relación "Asignado" N:N del MER)
---     Extendida con evento_id: la asignación es por evento
---     FK a Funcionario: funcionario_mail
--- -------------------------------------------------------------
 CREATE TABLE FuncionarioSectorEvento (
     id                INT          NOT NULL AUTO_INCREMENT,
     funcionario_mail  VARCHAR(255) NOT NULL,
     evento_id         CHAR(36)     NOT NULL,
-    tipo_sector       VARCHAR(10)  NOT NULL,
-    estadio_pais      VARCHAR(100) NOT NULL,
-    estadio_localidad VARCHAR(150) NOT NULL,
-    estadio_calle     VARCHAR(200) NOT NULL,
-    estadio_numero    VARCHAR(20)  NOT NULL,
+    sector_id         INT          NOT NULL,
     PRIMARY KEY (id),
-    -- Clave natural como UNIQUE con prefijos para respetar límite InnoDB de 3072 bytes
-    -- (composite natural PK = 3084 bytes en utf8mb4, excede el máximo)
-    UNIQUE KEY uq_fse (funcionario_mail(50), evento_id, tipo_sector, estadio_pais(50), estadio_localidad(50), estadio_calle(50), estadio_numero),
+    UNIQUE KEY uq_fse (funcionario_mail, evento_id, sector_id),
     CONSTRAINT fk_fse_funcionario FOREIGN KEY (funcionario_mail)
         REFERENCES Funcionario(usuario_mail),
-    CONSTRAINT fk_fse_es FOREIGN KEY
-        (evento_id, tipo_sector, estadio_pais, estadio_localidad, estadio_calle, estadio_numero)
-        REFERENCES EventoSector(evento_id, tipo_sector, estadio_pais, estadio_localidad, estadio_calle, estadio_numero)
+    CONSTRAINT fk_fse_es FOREIGN KEY (evento_id, sector_id)
+        REFERENCES EventoSector(evento_id, sector_id)
 ) ENGINE=InnoDB;
 
--- =============================================================
--- ÍNDICES DE PERFORMANCE
--- =============================================================
-
-CREATE INDEX idx_entrada_titular   ON Entrada(titular_mail);
-CREATE INDEX idx_entrada_venta     ON Entrada(venta_id);
-CREATE INDEX idx_entrada_evento    ON Entrada(evento_id);
-CREATE INDEX idx_venta_usuario     ON Venta(usuario_mail);
-CREATE INDEX idx_venta_estado      ON Venta(estado_id);
-CREATE INDEX idx_transf_entrada    ON Transferencia(entrada_id);
-CREATE INDEX idx_transf_origen     ON Transferencia(origen_mail);
-CREATE INDEX idx_transf_destino    ON Transferencia(destino_mail);
-CREATE INDEX idx_evento_estadio    ON Evento(estadio_pais, estadio_localidad, estadio_calle, estadio_numero, fecha);
 
 -- =============================================================
 -- VISTAS
 -- =============================================================
 
--- Disponibilidad en tiempo real por sector y evento
 CREATE VIEW vw_disponibilidad AS
 SELECT
     es.evento_id,
-    es.tipo_sector,
-    es.estadio_pais,
-    es.estadio_localidad,
-    es.estadio_calle,
-    es.estadio_numero,
+    es.sector_id,
+    s.nombre                        AS sector_nombre,
+    s.estadio_pais,
+    s.estadio_localidad,
     s.capacidad                     AS capacidad_maxima,
     COUNT(e.id)                     AS entradas_emitidas,
     s.capacidad - COUNT(e.id)       AS disponibles
 FROM EventoSector es
-JOIN Sector s ON (
-    s.tipo_sector       = es.tipo_sector       AND
-    s.estadio_pais      = es.estadio_pais      AND
-    s.estadio_localidad = es.estadio_localidad AND
-    s.estadio_calle     = es.estadio_calle     AND
-    s.estadio_numero    = es.estadio_numero
-)
-LEFT JOIN Entrada e ON (
-    e.evento_id         = es.evento_id         AND
-    e.tipo_sector       = es.tipo_sector       AND
-    e.estadio_pais      = es.estadio_pais      AND
-    e.estadio_localidad = es.estadio_localidad AND
-    e.estadio_calle     = es.estadio_calle     AND
-    e.estadio_numero    = es.estadio_numero
-)
+JOIN Sector s ON s.id = es.sector_id
+LEFT JOIN Entrada e ON (e.evento_id = es.evento_id AND e.sector_id = es.sector_id)
 GROUP BY
-    es.evento_id, es.tipo_sector,
-    es.estadio_pais, es.estadio_localidad, es.estadio_calle, es.estadio_numero,
-    s.capacidad;
+    es.evento_id, es.sector_id, s.nombre,
+    s.estadio_pais, s.estadio_localidad, s.capacidad;
 
--- Ranking de mayores compradores
 CREATE VIEW vw_mayores_compradores AS
 SELECT
     u.mail,
@@ -430,7 +349,6 @@ JOIN Entrada e ON e.venta_id     = v.id
 GROUP BY u.mail
 ORDER BY total_entradas_compradas DESC;
 
--- Ranking de eventos por entradas vendidas
 CREATE VIEW vw_eventos_mas_vendidos AS
 SELECT
     ev.id               AS evento_id,
@@ -444,38 +362,27 @@ FROM Evento ev
 JOIN Equipo eq_l ON eq_l.id = ev.equipo_local_id
 JOIN Equipo eq_v ON eq_v.id = ev.equipo_visitante_id
 LEFT JOIN EventoSector es ON es.evento_id = ev.id
-LEFT JOIN Entrada e ON (
-    e.evento_id         = es.evento_id         AND
-    e.tipo_sector       = es.tipo_sector       AND
-    e.estadio_pais      = es.estadio_pais      AND
-    e.estadio_localidad = es.estadio_localidad AND
-    e.estadio_calle     = es.estadio_calle     AND
-    e.estadio_numero    = es.estadio_numero
-)
+LEFT JOIN Entrada e ON (e.evento_id = es.evento_id AND e.sector_id = es.sector_id)
 GROUP BY ev.id, ev.fecha, eq_l.nombre, eq_v.nombre,
          ev.estadio_pais, ev.estadio_localidad
 ORDER BY total_entradas_vendidas DESC;
 
--- Cobertura de funcionarios por evento (auditoría)
 CREATE VIEW vw_cobertura_funcionarios AS
 SELECT
     fse.funcionario_mail,
     fse.evento_id,
-    fse.tipo_sector,
-    fse.estadio_pais,
+    fse.sector_id,
+    s.nombre AS sector_nombre,
     CASE
         WHEN EXISTS (
             SELECT 1
             FROM Validacion val
             JOIN Entrada en2 ON en2.id = val.entrada_id
-            WHERE val.funcionario_mail    = fse.funcionario_mail
-              AND en2.evento_id           = fse.evento_id
-              AND en2.tipo_sector         = fse.tipo_sector
-              AND en2.estadio_pais        = fse.estadio_pais
-              AND en2.estadio_localidad   = fse.estadio_localidad
-              AND en2.estadio_calle       = fse.estadio_calle
-              AND en2.estadio_numero      = fse.estadio_numero
+            WHERE val.funcionario_mail = fse.funcionario_mail
+              AND en2.evento_id        = fse.evento_id
+              AND en2.sector_id        = fse.sector_id
         ) THEN TRUE
         ELSE FALSE
     END AS sector_cubierto
-FROM FuncionarioSectorEvento fse;
+FROM FuncionarioSectorEvento fse
+JOIN Sector s ON s.id = fse.sector_id;

@@ -14,7 +14,13 @@ def get_connection():
 
 def get_db():
     conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
     try:
-        yield conn
+        yield cursor
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
+        cursor.close()
         conn.close()
