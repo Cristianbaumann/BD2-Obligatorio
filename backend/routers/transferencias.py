@@ -1,4 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
+from core.security import require_any_role
+from database import get_db
 
 router = APIRouter(prefix="/transferencias", tags=["transferencias"])
 
@@ -19,3 +21,26 @@ def create_transferencia():
 def get_transferencia(id: int):
     # TODO: get transferencia by id
     pass
+
+@router.get("/mis-transferencias")
+def transferencias_usuario(mail_usuario : str, user=Depends(require_any_role), db=Depends(get_db)):
+    query = """
+    SELECT 
+        t.id AS transferencia_id,
+        t.entrada_id AS entrada_id,
+        t.origen_mail AS origen_mail,
+        t.destino_mail AS destino_mail,
+        t.fecha AS fecha_transferencia,
+        t.estado AS estado
+    FROM Transferencia t
+    WHERE (t.origen_mail = %s OR t.destino_mail = %s)
+    ORDER BY t.fecha DESC
+    """
+
+    db.execute(query, (mail_usuario, mail_usuario))
+    transferencias = db.fetchall()
+
+    if not transferencias:
+        raise HTTPException(status_code=404, detail="No se encontraron transferencias para este usuario")
+
+    return {"transferencias": transferencias}

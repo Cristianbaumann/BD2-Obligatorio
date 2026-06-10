@@ -44,7 +44,7 @@ def list_dispositivos_autorizados(user=Depends(require_admin), db=Depends(get_db
     return {"dispositivos_autorizados": dispositivos}
 
 @router.post("/register")
-def registrar_dispositivo(id_dispositivo: str, mail_funcionario: str, user = Depends(requiere_admin), db=Depends(get_db)):
+def registrar_dispositivo(id_dispositivo: str, mail_funcionario: str, user = Depends(require_admin), db=Depends(get_db)):
     query = """
     INSERT INTO Dispositivo (id, funcionario_mail, activo)
     VALUES (%s, %s, TRUE)
