@@ -49,6 +49,7 @@ def validate_entrada(codigo_hash: str, dispositivo_id: str, user=Depends(require
     SELECT e.id, e.consumido, e.evento_id, e.sector_id
     FROM Entrada e
     WHERE e.id = %s
+    FOR UPDATE
     """
     db.execute(query_entrada, (entrada_id,))
     entrada = db.fetchone()
