@@ -8,10 +8,10 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 security = HTTPBearer(auto_error=False)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Roles válidos (deben coincidir exactamente con los valores en la BD) -------------
-ROLE_ADMIN        = "admin"
-ROLE_FUNCIONARIO  = "funcionario"
-ROLE_USUARIO_FINAL = "usuarioFinal"   # ← igual que en tu BD
+# Roles válidos — coinciden exactamente con el ENUM de la columna `rol` en Usuario
+ROLE_ADMIN         = "ADMIN"
+ROLE_FUNCIONARIO   = "FUNCIONARIO"
+ROLE_USUARIO_FINAL = "USUARIO_FINAL"
 
 ALL_ROLES = {ROLE_ADMIN, ROLE_FUNCIONARIO, ROLE_USUARIO_FINAL}
 
@@ -26,16 +26,12 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 # JWT ------------------------------------------------------------------------------
-def create_access_token(user_id: int, role: str) -> str:
-    """
-    Recibe explícitamente user_id y role para evitar que el llamador
-    olvide incluir alguno de los dos campos en el payload.
-    """
+def create_access_token(mail: str, role: str) -> str:
     if role not in ALL_ROLES:
         raise ValueError(f"Rol inválido: {role}")
 
     payload = {
-        "sub": str(user_id),
+        "sub": mail,
         "role": role,
         "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_EXPIRE_MINUTES),
     }
@@ -61,7 +57,7 @@ def decode_token(token: str) -> dict:
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> dict:
-    """Valida el token y devuelve {"user_id": int, "role": str}."""
+    """Valida el token y devuelve {"mail": str, "role": str}."""
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -71,24 +67,17 @@ def get_current_user(
 
     payload = decode_token(credentials.credentials)
 
-    user_id = payload.get("sub")
-    role    = payload.get("role")
+    mail = payload.get("sub")
+    role = payload.get("role")
 
-    if user_id is None or role not in ALL_ROLES:
+    if not mail or role not in ALL_ROLES:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido: faltan campos obligatorios",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    try:
-        return {"user_id": int(user_id), "role": role}
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token inválido: user_id malformado",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    return {"mail": mail, "role": role}
 
 
 # Dependencias de rol -----------------------------------------------------------------
