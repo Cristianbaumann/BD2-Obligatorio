@@ -44,3 +44,33 @@ def transferencias_usuario(mail_usuario : str, user=Depends(require_any_role), d
         raise HTTPException(status_code=404, detail="No se encontraron transferencias para este usuario")
 
     return {"transferencias": transferencias}
+
+@router.patch("/{id}/rechazar")
+def rechazar_transferencia(id: str, user=Depends(require_any_role), db=Depends(get_db)):
+    query = """
+    UPDATE Transferencia
+    SET estado = 'RECHAZADA'
+    WHERE id = %s AND estado = 'PENDIENTE'
+    """
+
+    db.execute(query, (id,))
+    if db.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Transferencia no encontrada o no está pendiente")
+    
+    db.commit()
+    return {"message": "Transferencia rechazada exitosamente"}
+
+@router.patch("/{id}/aceptar")
+def aceptar_transferencia(id: str, user=Depends(require_any_role), db=Depends(get_db)):
+    query = """
+    UPDATE Transferencia
+    SET estado = 'ACEPTADA'
+    WHERE id = %s AND estado = 'PENDIENTE'
+    """
+
+    db.execute(query, (id,))
+    if db.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Transferencia no encontrada o no está pendiente")
+    
+    db.commit()
+    return {"message": "Transferencia aceptada exitosamente"}
