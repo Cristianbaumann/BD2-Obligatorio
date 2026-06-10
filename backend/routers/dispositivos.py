@@ -1,5 +1,8 @@
-from fastapi import APIRouter, Depends
+
+from fastapi import APIRouter, Depends, HTTPException
 from core.security import require_admin
+from database import get_db
+
 
 router = APIRouter(prefix="/dispositivos", tags=["dispositivos"])
 
@@ -22,28 +25,20 @@ def delete_dispositivo(id: int):
     pass
 
 @router.get("/dispositivos-autorizados")
-def list_dispositivos_autorizados():
-    cursor = None
-    try:
-        cursor = db.cursor(dictionary=True)
-        
-        query = """
-        SELECT 
-            d.id AS dispositivo_id,
-            f.id AS funcionario_id,
-            f.nombre AS funcionario_nombre
-        FROM Dispositivo d
-        INNER JOIN Funcionario f ON d.funcionario_mail = f.usuario_mail
-        """
-        
-        cursor.execute(query)
-        dispositivos = cursor.fetchall() 
-        
-        if not dispositivos:
-            raise HTTPException(status_code=404, detail="No hay dispositivos autorizados")
-        
-        return {"dispositivos_autorizados": dispositivos}
-        
-    finally:
-        if cursor:
-            cursor.close()
+def list_dispositivos_autorizados(user=Depends(require_admin), db=Depends(get_db)):
+    query = """
+    SELECT 
+        d.id AS dispositivo_id,
+        f.usuario_mail AS funcionario_id,
+        f.numero_legajo AS numero_legajo
+    FROM Dispositivo d
+    INNER JOIN Funcionario f ON d.funcionario_mail = f.usuario_mail
+    """
+
+    db.execute(query)
+    dispositivos = db.fetchall()
+
+    if not dispositivos:
+        raise HTTPException(status_code=404, detail="No hay dispositivos autorizados")
+
+    return {"dispositivos_autorizados": dispositivos}

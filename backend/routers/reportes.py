@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from core.security import require_admin, require_funcionario, require_any_role
 from database import get_db
 
@@ -18,135 +18,105 @@ def reporte_eventos():
 
 @router.get("/mas-vendidos")
 def eventos_mas_vendidos(user=Depends(require_admin), db=Depends(get_db)):
-    cursor = None
-    try:
-        cursor = db.cursor(dictionary=True)
-        
-        query = """
-        SELECT e.id, e.nombre, COUNT(v.id) as cantidad_vendidas
-        FROM Evento e
-        LEFT JOIN Venta v ON e.id = v.evento_id
-        GROUP BY e.id, e.nombre
-        ORDER BY cantidad_vendidas DESC
-        LIMIT 10
-        """
-        
-        cursor.execute(query)
-        eventos = cursor.fetchall() 
-        cursor.close()
-        
-        return {"top_eventos": eventos}
+    query = """
+    SELECT 
+        e.id AS evento_id,
+        e.fecha AS fecha,
+        el.nombre AS equipo_local,
+        ev.nombre AS equipo_visitante,
+        e.estadio_pais,
+        e.estadio_localidad,
+        COUNT(en.id) AS total_entradas_vendidas
+    FROM Evento e
+    LEFT JOIN Entrada en ON e.id = en.evento_id
+    LEFT JOIN Equipo el ON e.equipo_local_id = el.id
+    LEFT JOIN Equipo ev ON e.equipo_visitante_id = ev.id
+    GROUP BY e.id, e.fecha, el.nombre, ev.nombre, e.estadio_pais, e.estadio_localidad
+    ORDER BY total_entradas_vendidas DESC
+    LIMIT 10
+    """
 
-    except Exception as e:
-        db.rollback() # Revierte en caso de error
-        return {"error": str(e)}
-        
-    finally:
-        if cursor:
-            cursor.close()
-            
-@router.get("/funcionario/{id}/cobertura")
+    db.execute(query)
+    eventos = db.fetchall()
+    
+    if not eventos:
+        raise HTTPException(status_code=404, detail="No se encontraron eventos")
+    
+    return {"top_eventos": eventos}
+
+
+
+@router.get("/funcionario/{usuario_mail}/cobertura")
 # Para un funcionario dado, cuántas ventas hizo y a cuántos clientes distintos vendió.
-def cobertura_funcionario(id: int, user=Depends(require_admin), db=Depends(get_db)):
-    cursor = None
-    try:
-        cursor = db.cursor(dictionary=True)
-        
+def cobertura_funcionario(usuario_mail: str, user=Depends(require_admin), db=Depends(get_db)):
         query = """
         SELECT 
-            f.id, f.nombre,
-            COUNT(DISTINCT v.id) AS total_ventas,
-            COUNT(DISTINCT c.id) AS total_clientes
+            f.usuario_mail AS funcionario_mail,
+            f.numero_legajo,
+            COUNT(v.id) AS total_ventas,
+            COUNT(DISTINCT e.titular_mail) AS total_clientes
         FROM Funcionario f
-        LEFT JOIN Venta v ON f.id = v.funcionario_id
-        LEFT JOIN Cliente c ON v.cliente_id = c.id
-        WHERE f.id = %s
-        GROUP BY f.id, f.nombre
+        LEFT JOIN Venta v ON f.usuario_mail = v.usuario_mail
+        LEFT JOIN Entrada e ON v.id = e.venta_id
+        WHERE f.usuario_mail = %s
+        GROUP BY f.usuario_mail, f.numero_legajo
         """
-        
-        cursor.execute(query, (id,))
-        cobertura = cursor.fetchone() 
-        cursor.close()
-        
-        if cobertura is None:
-            return {"error": "Funcionario no encontrado"}
-        
-        return {"cobertura_funcionario": cobertura}
 
-    except Exception as e:
-        db.rollback() # Revierte en caso de error
-        return {"error": str(e)}
-        
-    finally:
-        if cursor:
-            cursor.close()
-            
+        db.execute(query, (usuario_mail,))
+        cobertura = db.fetchone()
+
+        if cobertura is None:
+            raise HTTPException(status_code=404, detail="Funcionario no encontrado")
+
+        return {"cobertura_funcionario": cobertura}
+    
 
 @router.get("/disponibilidad_evento/{id}")
-# Para cada sector habilitado del evento: capacidad_max - entradas_emitidas = disponibles.
+# Para cada sector habilitado del evento: capacidad - entradas_emitidas = disponibles.
 def disponibilidad_evento(id: int, user=Depends(require_any_role), db=Depends(get_db)):
-    cursor = None
-    try:
-        cursor = db.cursor(dictionary=True)
-        
-        query = """
-        SELECT 
-            s.id AS sector_id, s.nombre AS sector_nombre,
-            s.capacidad_max,
-            COUNT(e.id) AS entradas_emitidas,
-            (s.capacidad_max - COUNT(e.id)) AS disponibles
-        FROM Sector s
-        LEFT JOIN Entrada e ON s.id = e.sector_id
-        WHERE s.evento_id = %s
-        GROUP BY s.id, s.nombre, s.capacidad_max
-        """
-        
-        cursor.execute(query, (id,))
-        disponibilidad = cursor.fetchall() 
-        cursor.close()
-        
-        if not disponibilidad:
-            return {"error": "Evento no encontrado o sin sectores habilitados"}
-        
-        return {"disponibilidad_evento": disponibilidad}
+    query = """
+    SELECT 
+        s.id AS sector_id, s.nombre AS sector_nombre,
+        s.capacidad,
+        COUNT(e.id) AS entradas_emitidas,
+        (s.capacidad - COUNT(e.id)) AS disponibles
+    FROM Sector s
+    LEFT JOIN Entrada e ON s.id = e.sector_id
+    WHERE s.evento_id = %s
+    GROUP BY s.id, s.nombre, s.capacidad
+    """
 
-    except Exception as e:
-        db.rollback() # Revierte en caso de error
-        return {"error": str(e)}
-        
-    finally:
-        if cursor:
-            cursor.close()
-            
+    db.execute(query, (id,))
+    disponibilidad = db.fetchall()
+
+    if not disponibilidad:
+        raise HTTPException(status_code=404, detail="Evento no encontrado o sin sectores habilitados")
+
+    return {"disponibilidad_evento": disponibilidad}
+
+
+
 @router.get("/mayores-compradores")
 # Agrupa ventas por usuario, suma entradas. Devuelve top N compradores.
 def mayores_compradores(user=Depends(require_admin), db=Depends(get_db)):
-    cursor = None
-    try:
-        cursor = db.cursor(dictionary=True)
-        
-        query = """
-        SELECT 
-            u.id AS usuario_id, u.nombre AS usuario_nombre,
-            COUNT(e.id) AS total_entradas
-        FROM Usuario u
-        LEFT JOIN Venta v ON u.id = v.usuario_id
-        LEFT JOIN Entrada e ON v.id = e.venta_id
-        GROUP BY u.id, u.nombre
-        ORDER BY total_entradas DESC
-        LIMIT 10
-        """
-        
-        cursor.execute(query)
-        compradores = cursor.fetchall() 
-        cursor.close()
-        
-        return {"mayores_compradores": compradores}
+    query = """
+    SELECT 
+        u.mail AS usuario_mail,
+        COUNT(e.id) AS total_entradas
+    FROM Usuario u
+    LEFT JOIN Venta v ON u.mail = v.usuario_mail
+    LEFT JOIN Entrada e ON v.id = e.venta_id
+    GROUP BY u.mail
+    ORDER BY total_entradas DESC
+    LIMIT 10
+    """
 
-    except Exception as e:
-        db.rollback() # Revierte en caso de error
-        return {"error": str(e)}
-        
-    finally:
-        if cursor:
-            cursor.close()
+    db.execute(query)
+    compradores = db.fetchall()
+    
+    if not compradores:
+        raise HTTPException(status_code=404, detail="No se encontraron compradores")
+    
+    return {"mayores_compradores": compradores}
+
+
