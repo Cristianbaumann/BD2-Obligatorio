@@ -11,6 +11,13 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 60
 
+    AUTH0_DOMAIN: str = ""
+    AUTH0_MGMT_CLIENT_ID: str = ""
+    AUTH0_MGMT_CLIENT_SECRET: str = ""
+    AUTH0_CLIENT_ID: str = ""
+    AUTH0_CLIENT_SECRET: str = ""
+    AUTH0_AUDIENCE: str = ""
+
     class Config:
         env_file = ".env"
 
