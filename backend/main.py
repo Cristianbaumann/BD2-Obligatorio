@@ -1,4 +1,9 @@
+import traceback
 from fastapi import FastAPI, Request
+from core.config import settings
+print("AUTH0_DOMAIN:", settings.AUTH0_DOMAIN)
+print("AUTH0_CLIENT_ID:", settings.AUTH0_CLIENT_ID)
+print("AUTH0_CLIENT_SECRET:", settings.AUTH0_CLIENT_SECRET[:6] + "..." if settings.AUTH0_CLIENT_SECRET else "EMPTY")
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from mysql.connector import IntegrityError, DatabaseError
@@ -10,6 +15,12 @@ from routers import (
 )
 
 app = FastAPI(title="Ticketing API")
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    traceback.print_exc()
+    return JSONResponse(status_code=500, content={"detail": str(exc)})
 
 
 @app.exception_handler(IntegrityError)
