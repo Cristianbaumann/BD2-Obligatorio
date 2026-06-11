@@ -19,3 +19,10 @@ VALUES (
 
 INSERT INTO Admin (usuario_mail, pais_sede, fecha_asignacion_cargo)
 VALUES ('admin@ticketing.com', 'Uruguay', '2026-01-01');
+
+-- Después de crear el usuario en Auth0, actualizar el auth0_id:
+-- UPDATE Usuario SET auth0_id = 'auth0|xxxx' WHERE mail = 'admin@ticketing.com';
+
+UPDATE Usuario 
+SET auth0_id = 'auth0|xxxx' 
+WHERE mail = 'mail';
