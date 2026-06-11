@@ -37,3 +37,13 @@ class SectorOut(BaseModel):
     estadio_numero: str
     nombre: str
     capacidad: int
+
+
+class EstadioDetail(BaseModel):
+    dir_pais: str
+    dir_localidad: str
+    dir_calle: str
+    dir_numero: str
+    nombre: str
+    aforo: int
+    sectores: List[SectorOut]
