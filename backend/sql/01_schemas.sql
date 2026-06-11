@@ -35,7 +35,9 @@ DROP TABLE IF EXISTS Usuario;
 
 CREATE TABLE Usuario (
     mail                VARCHAR(255) NOT NULL,
-    password_hash       VARCHAR(255) NOT NULL,
+    auth0_id            VARCHAR(100),
+    nombre              VARCHAR(100),
+    apellido            VARCHAR(100),
     rol                 ENUM('ADMIN','FUNCIONARIO','USUARIO_FINAL') NOT NULL,
 
     doc_pais            VARCHAR(100) NOT NULL,
@@ -49,6 +51,7 @@ CREATE TABLE Usuario (
     dir_codigo_postal   VARCHAR(20),
 
     PRIMARY KEY (mail),
+    UNIQUE KEY uq_auth0 (auth0_id),
     UNIQUE KEY uq_documento (doc_pais, doc_tipo, doc_numero)
 ) ENGINE=InnoDB;
 

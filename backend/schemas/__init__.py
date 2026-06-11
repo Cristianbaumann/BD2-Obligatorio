@@ -1,4 +1,4 @@
-from .auth import LoginRequest, LoginResponse
+from .auth import LoginRequest, AuthResponse
 from .usuario import (
     RolEnum, EstadoVerificacionEnum,
     UsuarioCreate, UsuarioOut, UsuarioUpdate,
