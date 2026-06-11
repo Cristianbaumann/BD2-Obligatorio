@@ -1,62 +1,75 @@
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
+from mysql.connector import IntegrityError
 from dependencies.auth import require_admin
 from database import get_db
-
+from schemas.dispositivo import DispositivoCreate, DispositivoOut
 
 router = APIRouter(prefix="/dispositivos", tags=["dispositivos"])
 
 
-@router.get("/")
-def list_dispositivos():
-    # TODO: list all dispositivos
-    pass
+@router.get("/", response_model=list[DispositivoOut])
+def list_dispositivos(db=Depends(get_db), user=Depends(require_admin)):
+    db.execute("SELECT id, funcionario_mail, activo FROM Dispositivo")
+    return db.fetchall()
 
 
-@router.post("/")
-def create_dispositivo():
-    # TODO: register dispositivo
-    pass
+@router.post("/", response_model=DispositivoOut, status_code=status.HTTP_201_CREATED)
+def create_dispositivo(
+    body: DispositivoCreate,           
+    db=Depends(get_db),
+    user=Depends(require_admin)
+):
+    # Verificar que el funcionario existe
+    db.execute(
+        "SELECT usuario_mail FROM Funcionario WHERE usuario_mail = %s",
+        (body.funcionario_mail,)
+    )
+    if db.fetchone() is None:
+        raise HTTPException(status_code=404, detail="Funcionario no encontrado")
+
+    try:
+        db.execute(
+            "INSERT INTO Dispositivo (id, funcionario_mail, activo) VALUES (UUID(), %s, TRUE)",
+            (body.funcionario_mail,)
+        )
+        db.commit()
+    except IntegrityError:              
+        raise HTTPException(status_code=409, detail="El dispositivo ya está registrado")
+
+    db.execute(
+        "SELECT id, funcionario_mail, activo FROM Dispositivo WHERE funcionario_mail = %s ORDER BY rowid DESC LIMIT 1",
+        (body.funcionario_mail,)
+    )
+    return db.fetchone()
 
 
-@router.delete("/{id}")
-def delete_dispositivo(id: int):
-    # TODO: delete dispositivo
-    pass
+@router.delete("/{id}", status_code=status.HTTP_200_OK)
+def delete_dispositivo(
+    id: str,                           
+    db=Depends(get_db),
+    user=Depends(require_admin)
+):
+    db.execute("SELECT id FROM Dispositivo WHERE id = %s", (id,))
+    if db.fetchone() is None:
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
 
-@router.get("/dispositivos-autorizados")
-def list_dispositivos_autorizados(user=Depends(require_admin), db=Depends(get_db)):
-    query = """
-    SELECT 
-        d.id AS dispositivo_id,
-        f.usuario_mail AS funcionario_id,
-        f.numero_legajo AS numero_legajo
-    FROM Dispositivo d
-    INNER JOIN Funcionario f ON d.funcionario_mail = f.usuario_mail
-    """
+    db.execute("DELETE FROM Dispositivo WHERE id = %s", (id,))
+    db.commit()
+    return {"detail": "Dispositivo eliminado"}
 
-    db.execute(query)
+
+@router.get("/autorizados", response_model=list[DispositivoOut])  # ← ruta simplificada
+def list_dispositivos_autorizados(db=Depends(get_db), user=Depends(require_admin)):
+    db.execute(
+        """
+        SELECT id, funcionario_mail, activo
+        FROM Dispositivo
+        WHERE activo = TRUE              
+        """
+    )
     dispositivos = db.fetchall()
 
     if not dispositivos:
         raise HTTPException(status_code=404, detail="No hay dispositivos autorizados")
 
-    return {"dispositivos_autorizados": dispositivos}
-
-@router.post("/register")
-def registrar_dispositivo(id_dispositivo: str, mail_funcionario: str, user = Depends(require_admin), db=Depends(get_db)):
-    query = """
-    INSERT INTO Dispositivo (id, funcionario_mail, activo)
-    VALUES (%s, %s, TRUE)
-    """
-    try:
-        db.execute(query, (id_dispositivo, mail_funcionario))
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        if "Duplicate entry" in str(e):
-            raise HTTPException(status_code=409, detail="El dispositivo ya está registrado")
-        raise HTTPException(status_code=500, detail="Error interno al registrar dispositivo")
-
-    return {"message": "Dispositivo registrado exitosamente"}
-    
+    return dispositivos
