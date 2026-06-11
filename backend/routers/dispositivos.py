@@ -1,6 +1,6 @@
 
 from fastapi import APIRouter, Depends, HTTPException
-from core.security import require_admin
+from dependencies.auth import require_admin
 from database import get_db
 
 

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from database import get_db
-from core.security import require_any_role
+from dependencies.auth import require_any_role
 
 
 router = APIRouter(prefix="/entradas", tags=["entradas"])

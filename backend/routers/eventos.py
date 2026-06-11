@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from mysql.connector import IntegrityError
 import traceback
 
-from core.security import require_admin
+from dependencies.auth import require_admin
 from database import get_db
 from schemas.evento import EventoCreate, EventoOut, EventoSectorItem, EventoSectorOut
 

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from core.security import require_funcionario
+from dependencies.auth import require_funcionario
 from database import get_db
 from datetime import datetime
 

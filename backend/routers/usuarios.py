@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException 
-from core.security import require_funcionario, requiere_admin
+from dependencies.auth import require_funcionario, requiere_admin
 from database import get_db
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
