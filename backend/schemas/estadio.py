@@ -29,6 +29,16 @@ class SectorCreate(BaseModel):
     capacidad: int
 
 
+class SectorIn(BaseModel):
+    nombre: str
+    capacidad: int
+
+
+class SectorUpdate(BaseModel):
+    nombre: Optional[str] = None
+    capacidad: Optional[int] = None
+
+
 class SectorOut(BaseModel):
     id: int
     estadio_pais: str

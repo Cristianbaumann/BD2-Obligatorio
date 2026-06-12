@@ -35,6 +35,8 @@ class UsuarioCreate(BaseModel):
 
 class UsuarioOut(BaseModel):
     mail: str
+    nombre: Optional[str]
+    apellido: Optional[str]
     rol: str
     doc_pais: str
     doc_tipo: str
@@ -44,6 +46,24 @@ class UsuarioOut(BaseModel):
     dir_calle: str
     dir_numero: str
     dir_codigo_postal: Optional[str]
+    estado_verificacion: Optional[str] = None
+
+
+class MeOut(BaseModel):
+    mail: str
+    nombre: Optional[str]
+    apellido: Optional[str]
+    rol: str
+    doc_pais: str
+    doc_tipo: str
+    doc_numero: str
+    dir_pais: str
+    dir_localidad: str
+    dir_calle: str
+    dir_numero: str
+    dir_codigo_postal: Optional[str]
+    estado_verificacion: Optional[str] = None
+    telefonos: List[str] = []
 
 
 class UsuarioUpdate(BaseModel):
