@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from mysql.connector import IntegrityError
 import traceback
 
-from core.security import require_admin
+from dependencies.auth import require_admin
 from database import get_db
 from schemas.evento import EventoCreate, EventoOut, EventoSectorItem, EventoSectorOut
 
@@ -346,3 +346,57 @@ def add_evento_sectores(
         {"evento_id": id, "sector_id": item.sector_id, "costo": item.costo}
         for item in sectores
     ]
+
+
+@router.delete(
+    "/{id}/sectores/{sector_id}",
+    summary="Deshabilitar sector en un evento",
+    description="Elimina la asociación de un sector con un evento, siempre y cuando no se hayan vendido entradas para ese sector en ese evento. Solo administradores de la jurisdicción.",
+)
+def remove_evento_sector(
+    id: str,
+    sector_id: int,
+    db=Depends(get_db),
+    admin=Depends(require_admin),
+):
+    """Deshabilitar un sector de un evento con validaciones de jurisdicción y ventas previas."""
+    pais_sede = _get_admin_pais_sede(db, admin["mail"])
+
+    # 1. Verificar existencia del evento y jurisdicción
+    db.execute(
+        "SELECT estadio_pais FROM Evento WHERE id = %s",
+        (id,),
+    )
+    evento = db.fetchone()
+    if not evento:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+
+    if evento["estadio_pais"] != pais_sede:
+        raise HTTPException(
+            status_code=403,
+            detail="El admin no puede modificar eventos fuera de su jurisdicción",
+        )
+
+    # 2. Validar que no existan entradas vendidas para este sector en este evento
+    db.execute(
+        """
+        SELECT COUNT(*) as total
+        FROM Entrada
+        WHERE evento_id = %s AND sector_id = %s
+        """,
+        (id, sector_id),
+    )
+    check_ventas = db.fetchone()
+    if check_ventas and check_ventas["total"] > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="No se puede deshabilitar el sector porque ya existen entradas vendidas",
+        )
+
+    # 3. Eliminar la asociación
+    db.execute(
+        "DELETE FROM EventoSector WHERE evento_id = %s AND sector_id = %s",
+        (id, sector_id),
+    )
+    
+    return {"detail": f"Sector {sector_id} deshabilitado para el evento {id}"}
