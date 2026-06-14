@@ -203,9 +203,10 @@ function FormContent({ mode, loginForm, setL, registerForm, setR, onLogin, onReg
 }
 
 // ─── TIMING CONSTANTS ─────────────────────────────────────────────
-const FOLD_EASE    = [0.35, 0, 0.65, 1]   // balanced ease-in-out for fold/unfold
-const FOLD_DUR     = 0.38                   // seconds — deliberate, not rushed
-const FORM_EXIT_DUR= 0.28
+const SLIDE_DUR      = 0.36
+const SLIDE_EASE     = [0.4, 0, 0.2, 1]   // material-style ease-in-out
+const FORM_EXIT_DUR  = 0.26
+const SLIDE_X        = 900                 // guaranteed > 50vw on any screen
 
 // ─── AuthPage ─────────────────────────────────────────────────────
 export default function AuthPage({ initialMode = 'login' }) {
@@ -226,71 +227,66 @@ export default function AuthPage({ initialMode = 'login' }) {
   const setL = field => e => setLoginForm(f  => ({ ...f,  [field]: e.target.value }))
   const setR = field => e => setRegisterForm(f => ({ ...f, [field]: e.target.value }))
 
-  // ── Book-flip ─────────────────────────────────────────────────
-  // login  → register: image RIGHT→LEFT, new form enters LEFT→RIGHT (x: -300→0)
-  // register → login:  image LEFT→RIGHT, new form enters RIGHT→LEFT (x: +300→0)
-  // overflow:hidden on each slot clips the form until it crosses the divider edge,
-  // creating the illusion it's sliding out from under the image page.
+  // ── Slide transition (Remotion-style push slide, no rotateY) ──────
+  // login→register: image RIGHT→LEFT, form enters LEFT→RIGHT (opposite)
+  // register→login: image LEFT→RIGHT, form enters RIGHT→LEFT (opposite)
+  // overflow:hidden on each slot clips content at the divider edge.
   async function switchMode(target) {
     if (animating || target === mode) return
     setAnimating(true)
 
     const toRegister = target === 'register'
 
-    const imgControls  = toRegister ? rightControls : leftControls  // currently has image
-    const formControls = toRegister ? leftControls  : rightControls // currently has form
+    // Before mode change: which slot has image, which has form
+    const currImg  = toRegister ? rightControls : leftControls
+    const currForm = toRegister ? leftControls  : rightControls
 
-    const foldAngle  = toRegister ? -90 : 90
-    // Both exits go LEFT: image sweeps toward form, form retreats toward divider
-    const formExitX  = -160
-    // Enter from OPPOSITE side to image sweep (clipped by slot overflow:hidden)
-    // login→register: image goes left  → form enters right-slot from left  (x:-320→0, slides RIGHT)
-    // register→login: image goes right → form enters left-slot  from right (x:+320→0, slides LEFT)
+    // Image sweeps in its direction; form exits opposite (retreats from image)
+    const imgExitX   = toRegister ? -SLIDE_X : SLIDE_X
+    const formExitX  = toRegister ? -160 : 160
+
+    // Enter from OPPOSITE side — clipped by slot overflow until past divider
+    // Image enters the new slot from the side the image came from
+    const imgEnterX  = toRegister ? SLIDE_X : -SLIDE_X
+    // Form enters opposite to image direction
     const formEnterX = toRegister ? -320 : 320
 
-    // ── Phase 1: exit ──────────────────────────────────────────
+    // ── Phase 1: both exit ────────────────────────────────────
     await Promise.all([
-      imgControls.start({
-        rotateY: foldAngle,
-        transition: { duration: FOLD_DUR, ease: FOLD_EASE },
+      currImg.start({
+        x: imgExitX, opacity: 0,
+        transition: { duration: SLIDE_DUR, ease: SLIDE_EASE },
       }),
-      formControls.start({
+      currForm.start({
         x: formExitX, opacity: 0,
         transition: { duration: FORM_EXIT_DUR, ease: [0.4, 0, 1, 0.6] },
       }),
     ])
 
-    // ── Phase 2: teleport — SET positions while invisible, THEN change mode ──
-    // Critical order: set transforms first (both slots at opacity:0) so React
-    // re-render sees correct starting positions — avoids the "flash at x:0" bug.
-    //
-    // imgSlot: image was at rotateY:foldAngle — reposition for form entry
-    imgControls.set({ opacity: 0, rotateY: 0, x: formEnterX })
-    // formSlot: form was at x:formExitX — reposition for image unfold entry
-    formControls.set({ opacity: 0, x: 0, rotateY: -foldAngle })
-
-    // Now swap content — slots are opacity:0 so the content swap is invisible
+    // ── Phase 2: teleport — hide, set enter positions, swap content ──
+    // Set BEFORE setMode so React paints new content at correct start position
+    currImg.set({ opacity: 0, x: 0 })
+    currForm.set({ opacity: 0, x: 0 })
     setMode(target)
-
-    // One rAF: let React paint new content before revealing
     await new Promise(r => requestAnimationFrame(r))
 
-    // ── Phase 3: image unfolds on new side (spring, reveal with opacity) ──
-    formControls.start({
-      rotateY: 0, opacity: 1,
-      transition: { type: 'spring', stiffness: 180, damping: 28, mass: 1 },
-    })
+    // After mode change: slots have swapped content — use new labels
+    const newImg  = toRegister ? leftControls : rightControls
+    const newForm = toRegister ? rightControls : leftControls
+    newImg.set({ x: imgEnterX, opacity: 0 })
+    newForm.set({ x: formEnterX, opacity: 0 })
 
-    // Head-start for image before form slides in
-    await new Promise(r => setTimeout(r, 100))
-
-    // ── Phase 4: form slides out from under the page ───────────
-    // login→register: x:-320→0  (slides LEFT→RIGHT, opposite to image)
-    // register→login: x:+320→0  (slides RIGHT→LEFT, opposite to image)
-    await imgControls.start({
-      x: 0, opacity: 1,
-      transition: { duration: 0.52, ease: [0.22, 1, 0.36, 1] },
-    })
+    // ── Phase 3: both enter simultaneously (push-slide feel) ──
+    await Promise.all([
+      newImg.start({
+        x: 0, opacity: 1,
+        transition: { type: 'spring', stiffness: 260, damping: 30, mass: 0.85 },
+      }),
+      newForm.start({
+        x: 0, opacity: 1,
+        transition: { type: 'spring', stiffness: 260, damping: 30, mass: 0.85 },
+      }),
+    ])
 
     setAnimating(false)
   }
@@ -330,17 +326,10 @@ export default function AuthPage({ initialMode = 'login' }) {
       <div style={{ height: '100vh', width: '100%', background: '#0A0A12', position: 'relative', overflow: 'hidden' }}>
 
         {/* ── LEFT slot ─────────────────────────────────────────── */}
-        {/* perspective on wrapper, transformOrigin on inner = spine on RIGHT edge */}
-        <div style={{ ...slotBase, left: 0, perspective: '1200px', perspectiveOrigin: 'right center' }}>
+        <div style={{ ...slotBase, left: 0 }}>
           <motion.div
             animate={leftControls}
-            style={{
-              width: '100%', height: '100%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 56px',
-              transformOrigin: 'right center',
-              transformStyle: 'preserve-3d',
-              backfaceVisibility: 'hidden',
-            }}
+            style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 56px' }}
           >
             {isLogin
               ? <FormContent mode={mode} loginForm={loginForm} setL={setL} registerForm={registerForm} setR={setR} onLogin={handleLogin} onRegister={handleRegister} onSwitch={() => switchMode('register')} />
@@ -349,24 +338,17 @@ export default function AuthPage({ initialMode = 'login' }) {
           </motion.div>
         </div>
 
-        {/* ── Divider (spine of the book) ──────────────────────── */}
+        {/* ── Divider ──────────────────────────────────────────── */}
         <div style={{
           position: 'absolute', top: 0, bottom: 0, left: '50%', width: '1px', zIndex: 10, pointerEvents: 'none',
           background: 'linear-gradient(to bottom, transparent 0%, rgba(201,162,39,0.22) 25%, rgba(201,162,39,0.22) 75%, transparent 100%)',
         }} />
 
         {/* ── RIGHT slot ────────────────────────────────────────── */}
-        {/* perspective on wrapper, transformOrigin on inner = spine on LEFT edge */}
-        <div style={{ ...slotBase, left: '50%', perspective: '1200px', perspectiveOrigin: 'left center' }}>
+        <div style={{ ...slotBase, left: '50%' }}>
           <motion.div
             animate={rightControls}
-            style={{
-              width: '100%', height: '100%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 56px',
-              transformOrigin: 'left center',
-              transformStyle: 'preserve-3d',
-              backfaceVisibility: 'hidden',
-            }}
+            style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 56px' }}
           >
             {isLogin
               ? <ImagePanel gradientDir="left" />
