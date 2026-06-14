@@ -6,7 +6,6 @@ import useAuthStore from '../store/authStore'
 import api from '../services/api'
 import TunnelAnimation from '../components/TunnelAnimation'
 
-// ─── Slides ──────────────────────────────────────────────────────
 const SLIDES = [
   '/assets/mundial/img1.jpg',
   '/assets/mundial/img2.jpg',
@@ -15,9 +14,12 @@ const SLIDES = [
   '/assets/mundial/img5.jpg',
 ]
 
-// ─── ImagePanel ───────────────────────────────────────────────────
-function ImagePanel({ gradientDir }) {
+// ─── SlidingPanel ─────────────────────────────────────────────────────────────
+// The image panel that slides left↔right to reveal/cover forms.
+// Contains the CTA to switch modes.
+function SlidingPanel({ mode, onSwitch, disabled }) {
   const [current, setCurrent] = useState(0)
+  const isLogin = mode === 'login'
 
   useEffect(() => {
     const t = setInterval(() => setCurrent(c => (c + 1) % SLIDES.length), 4800)
@@ -26,13 +28,14 @@ function ImagePanel({ gradientDir }) {
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', userSelect: 'none' }}>
+      {/* Slideshow images */}
       <AnimatePresence mode="sync">
         <motion.img
           key={current}
           src={SLIDES[current]}
           alt="World Cup"
           initial={{ opacity: 0, scale: 1.05 }}
-          animate={{ opacity: 0.62, scale: 1 }}
+          animate={{ opacity: 0.72, scale: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 1.2, ease: 'easeInOut' }}
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }}
@@ -40,24 +43,51 @@ function ImagePanel({ gradientDir }) {
         />
       </AnimatePresence>
 
-      <div style={{
-        position: 'absolute', inset: 0,
-        background: gradientDir === 'left'
-          ? 'linear-gradient(to left,  #0A0A12 0%, rgba(10,10,18,0.35) 38%, transparent 100%)'
-          : 'linear-gradient(to right, #0A0A12 0%, rgba(10,10,18,0.35) 38%, transparent 100%)',
-      }} />
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(10,10,18,0.1)' }} />
+      {/* Dark overlay for readability */}
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(10,10,18,0.55)' }} />
 
+      {/* Panel content */}
       <div style={{
-        position: 'absolute', bottom: '4.5rem',
-        ...(gradientDir === 'left' ? { right: '2.5rem', textAlign: 'right' } : { left: '2.5rem', textAlign: 'left' }),
+        position: 'absolute', inset: 0, zIndex: 2,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: '0 40px', textAlign: 'center',
       }}>
-        <p style={{ fontFamily: 'Bebas Neue, cursive', color: '#C9A227', fontSize: '48px', lineHeight: 1, letterSpacing: '4px' }}>FIFA</p>
-        <p style={{ fontFamily: 'Bebas Neue, cursive', color: '#fff', fontSize: '1.5rem', letterSpacing: '5px', lineHeight: 1.2 }}>World Cup 2026</p>
-        <p style={{ color: 'rgba(255,255,255,0.22)', fontSize: '11px', marginTop: '10px', lineHeight: 1.6 }}>Viví la experiencia única del fútbol mundial</p>
+        <p style={{ fontFamily: 'Bebas Neue, cursive', color: '#C9A227', fontSize: '12px', letterSpacing: '7px', marginBottom: '4px' }}>
+          FIFA WORLD CUP
+        </p>
+        <p style={{ fontFamily: 'Bebas Neue, cursive', color: '#fff', fontSize: '15px', letterSpacing: '6px', marginBottom: '52px' }}>
+          2026
+        </p>
+
+        <p style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '44px', color: '#fff', letterSpacing: '2px', lineHeight: 1, marginBottom: '14px' }}>
+          {isLogin ? '¿Primera vez?' : '¿Ya tenés cuenta?'}
+        </p>
+        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', lineHeight: 1.75, marginBottom: '40px', maxWidth: '210px' }}>
+          {isLogin
+            ? 'Creá tu cuenta y viví la experiencia única del Mundial de Fútbol'
+            : 'Iniciá sesión para ver partidos, estadios y comprar tus entradas'}
+        </p>
+
+        <button
+          onClick={onSwitch}
+          disabled={disabled}
+          style={{
+            padding: '13px 44px', borderRadius: '9999px',
+            background: 'transparent', border: '2px solid rgba(201,162,39,0.75)',
+            color: '#C9A227', fontFamily: 'Bebas Neue, cursive',
+            fontSize: '15px', letterSpacing: '3px',
+            cursor: disabled ? 'default' : 'pointer',
+            transition: 'background 0.2s, border-color 0.2s',
+          }}
+          onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background = 'rgba(201,162,39,0.12)'; e.currentTarget.style.borderColor = '#C9A227' } }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(201,162,39,0.75)' }}
+        >
+          {isLogin ? 'Crear Cuenta' : 'Iniciar Sesión'}
+        </button>
       </div>
 
-      <div style={{ position: 'absolute', bottom: '1.5rem', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '6px' }}>
+      {/* Slide dots */}
+      <div style={{ position: 'absolute', bottom: '1.5rem', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '6px', zIndex: 2 }}>
         {SLIDES.map((_, i) => (
           <button key={i} onClick={() => setCurrent(i)} style={{
             height: '4px', width: i === current ? '24px' : '6px', borderRadius: '9999px',
@@ -71,8 +101,7 @@ function ImagePanel({ gradientDir }) {
   )
 }
 
-// ─── AuthInput ────────────────────────────────────────────────────
-// Top-level → stable ref → no remount on parent re-render
+// ─── AuthInput ────────────────────────────────────────────────────────────────
 function AuthInput({ label, type = 'text', placeholder, value, onChange, autoComplete }) {
   const [mouseX, setMouseX] = useState(0)
   const [hovering, setHovering] = useState(false)
@@ -124,7 +153,7 @@ function AuthInput({ label, type = 'text', placeholder, value, onChange, autoCom
   )
 }
 
-// ─── GoldButton ───────────────────────────────────────────────────
+// ─── GoldButton ───────────────────────────────────────────────────────────────
 function GoldButton({ children }) {
   return (
     <button type="submit" style={{
@@ -135,18 +164,18 @@ function GoldButton({ children }) {
       <span style={{ fontFamily: 'Bebas Neue, cursive', color: '#0A0A12', fontSize: '18px', letterSpacing: '3px', position: 'relative', zIndex: 1 }}>
         {children}
       </span>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'center' }}
-        className="[transform:skew(-13deg)_translateX(-100%)] group-hover:duration-700 group-hover:[transform:skew(-13deg)_translateX(100%)]">
+      <div
+        style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'center' }}
+        className="[transform:skew(-13deg)_translateX(-100%)] group-hover:duration-700 group-hover:[transform:skew(-13deg)_translateX(100%)]"
+      >
         <div style={{ width: '2rem', height: '100%', background: 'rgba(255,255,255,0.22)' }} />
       </div>
     </button>
   )
 }
 
-// ─── FormContent ─────────────────────────────────────────────────
-// Stable top-level — all state via props
-function FormContent({ mode, loginForm, setL, registerForm, setR, onLogin, onRegister, onSwitch }) {
-  const isLogin = mode === 'login'
+// ─── LoginForm ────────────────────────────────────────────────────────────────
+function LoginForm({ form, setField, onSubmit }) {
   return (
     <div style={{ width: '100%', maxWidth: '360px' }}>
       <div style={{
@@ -155,138 +184,113 @@ function FormContent({ mode, loginForm, setL, registerForm, setR, onLogin, onReg
         color: '#C9A227', fontSize: '10px', letterSpacing: '3px',
         textTransform: 'uppercase', fontWeight: 500, marginBottom: '20px',
       }}>
-        {isLogin ? 'FIFA World Cup 2026' : 'Nueva cuenta'}
+        FIFA World Cup 2026
       </div>
-
       <h1 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '58px', lineHeight: 1, color: '#fff', letterSpacing: '2px', marginBottom: '10px' }}>
-        {isLogin ? 'Bienvenido' : 'Crear Cuenta'}
+        Bienvenido
       </h1>
       <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '13px', lineHeight: 1.65, marginBottom: '36px' }}>
-        {isLogin ? 'Ingresá con tu cuenta para continuar' : 'Registrate para comprar tus entradas'}
+        Ingresá con tu cuenta para continuar
       </p>
       <div style={{ height: '1px', width: '48px', marginBottom: '32px', background: 'linear-gradient(to right, #C9A227, transparent)' }} />
-
-      <form onSubmit={isLogin ? onLogin : onRegister}>
+      <form onSubmit={onSubmit}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {isLogin ? (
-            <>
-              <AuthInput label="Email" type="email" placeholder="tu@email.com" autoComplete="email" value={loginForm.email} onChange={setL('email')} />
-              <AuthInput label="Contraseña" type="password" placeholder="••••••••" autoComplete="current-password" value={loginForm.password} onChange={setL('password')} />
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <a href="#" style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', textDecoration: 'none' }}>¿Olvidaste tu contraseña?</a>
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <AuthInput label="Nombre" placeholder="Lionel" value={registerForm.nombre} onChange={setR('nombre')} />
-                <AuthInput label="Apellido" placeholder="Messi" value={registerForm.apellido} onChange={setR('apellido')} />
-              </div>
-              <AuthInput label="Documento" placeholder="12345678" value={registerForm.documento} onChange={setR('documento')} />
-              <AuthInput label="Email" type="email" placeholder="tu@email.com" autoComplete="email" value={registerForm.email} onChange={setR('email')} />
-              <AuthInput label="Contraseña" type="password" placeholder="••••••••" autoComplete="new-password" value={registerForm.password} onChange={setR('password')} />
-            </>
-          )}
+          <AuthInput label="Email" type="email" placeholder="tu@email.com" autoComplete="email" value={form.email} onChange={setField('email')} />
+          <AuthInput label="Contraseña" type="password" placeholder="••••••••" autoComplete="current-password" value={form.password} onChange={setField('password')} />
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <a href="#" style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', textDecoration: 'none' }}>¿Olvidaste tu contraseña?</a>
+          </div>
         </div>
         <div style={{ marginTop: '32px' }}>
-          <GoldButton>{isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}</GoldButton>
+          <GoldButton>Iniciar Sesión</GoldButton>
         </div>
-        <p style={{ marginTop: '20px', textAlign: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.25)' }}>
-          {isLogin ? '¿No tenés cuenta?' : '¿Ya tenés cuenta?'}{' '}
-          <button type="button" onClick={onSwitch} style={{ color: '#C9A227', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline' }}>
-            {isLogin ? 'Registrate' : 'Iniciá sesión'}
-          </button>
-        </p>
       </form>
     </div>
   )
 }
 
-// ─── TIMING CONSTANTS ─────────────────────────────────────────────
-const SLIDE_DUR      = 0.36
-const SLIDE_EASE     = [0.4, 0, 0.2, 1]   // material-style ease-in-out
-const FORM_EXIT_DUR  = 0.26
-const SLIDE_X        = 900                 // guaranteed > 50vw on any screen
+// ─── RegisterForm ─────────────────────────────────────────────────────────────
+function RegisterForm({ form, setField, onSubmit }) {
+  return (
+    <div style={{ width: '100%', maxWidth: '360px' }}>
+      <div style={{
+        display: 'inline-block', padding: '4px 12px', borderRadius: '6px',
+        background: 'rgba(201,162,39,0.08)', border: '1px solid rgba(201,162,39,0.22)',
+        color: '#C9A227', fontSize: '10px', letterSpacing: '3px',
+        textTransform: 'uppercase', fontWeight: 500, marginBottom: '20px',
+      }}>
+        Nueva Cuenta
+      </div>
+      <h1 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '58px', lineHeight: 1, color: '#fff', letterSpacing: '2px', marginBottom: '10px' }}>
+        Crear Cuenta
+      </h1>
+      <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '13px', lineHeight: 1.65, marginBottom: '36px' }}>
+        Registrate para comprar tus entradas
+      </p>
+      <div style={{ height: '1px', width: '48px', marginBottom: '32px', background: 'linear-gradient(to right, #C9A227, transparent)' }} />
+      <form onSubmit={onSubmit}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <AuthInput label="Nombre" placeholder="Lionel" value={form.nombre} onChange={setField('nombre')} />
+            <AuthInput label="Apellido" placeholder="Messi" value={form.apellido} onChange={setField('apellido')} />
+          </div>
+          <AuthInput label="Documento" placeholder="12345678" value={form.documento} onChange={setField('documento')} />
+          <AuthInput label="Email" type="email" placeholder="tu@email.com" autoComplete="email" value={form.email} onChange={setField('email')} />
+          <AuthInput label="Contraseña" type="password" placeholder="••••••••" autoComplete="new-password" value={form.password} onChange={setField('password')} />
+        </div>
+        <div style={{ marginTop: '32px' }}>
+          <GoldButton>Crear Cuenta</GoldButton>
+        </div>
+      </form>
+    </div>
+  )
+}
 
-// ─── AuthPage ─────────────────────────────────────────────────────
+// ─── AuthPage ─────────────────────────────────────────────────────────────────
 export default function AuthPage({ initialMode = 'login' }) {
   const { login } = useAuthStore()
   const [mode, setMode] = useState(initialMode)
   const [animating, setAnimating] = useState(false)
   const [showTunnel, setShowTunnel] = useState(false)
 
-  const [loginForm, setLoginForm]     = useState({ email: '', password: '' })
+  const [loginForm, setLoginForm]       = useState({ email: '', password: '' })
   const [registerForm, setRegisterForm] = useState({ nombre: '', apellido: '', email: '', password: '', documento: '' })
 
-  // Two permanent slots — LEFT and RIGHT — their CSS never changes.
-  // Content inside them changes based on mode.
-  // leftControls / rightControls drive the animation for the WHOLE slot.
-  const leftControls  = useAnimation()
-  const rightControls = useAnimation()
+  // Three independent controls:
+  //   imageControls  — the sliding image panel (x: 0 = left half, x:'100%' = right half)
+  //   loginControls  — login form opacity (always rendered in left slot)
+  //   registerControls — register form opacity (always rendered in right slot)
+  const imageControls    = useAnimation()
+  const loginControls    = useAnimation()
+  const registerControls = useAnimation()
 
-  const setL = field => e => setLoginForm(f  => ({ ...f,  [field]: e.target.value }))
+  const setL = field => e => setLoginForm(f    => ({ ...f, [field]: e.target.value }))
   const setR = field => e => setRegisterForm(f => ({ ...f, [field]: e.target.value }))
 
-  // ── Slide transition (Remotion-style push slide, no rotateY) ──────
-  // login→register: image RIGHT→LEFT, form enters LEFT→RIGHT (opposite)
-  // register→login: image LEFT→RIGHT, form enters RIGHT→LEFT (opposite)
-  // overflow:hidden on each slot clips content at the divider edge.
   async function switchMode(target) {
     if (animating || target === mode) return
     setAnimating(true)
 
     const toRegister = target === 'register'
 
-    // Before mode change: which slot has image, which has form
-    const currImg  = toRegister ? rightControls : leftControls
-    const currForm = toRegister ? leftControls  : rightControls
+    // Phase 1: fade out current form
+    await (toRegister ? loginControls : registerControls).start({
+      opacity: 0,
+      transition: { duration: 0.2, ease: 'easeIn' },
+    })
 
-    // Image sweeps in its direction; form exits opposite (retreats from image)
-    const imgExitX   = toRegister ? -SLIDE_X : SLIDE_X
-    const formExitX  = toRegister ? -160 : 160
-
-    // Enter from OPPOSITE side — clipped by slot overflow until past divider
-    // Image enters the new slot from the side the image came from
-    const imgEnterX  = toRegister ? SLIDE_X : -SLIDE_X
-    // Form enters opposite to image direction
-    const formEnterX = toRegister ? -320 : 320
-
-    // ── Phase 1: both exit ────────────────────────────────────
-    await Promise.all([
-      currImg.start({
-        x: imgExitX, opacity: 0,
-        transition: { duration: SLIDE_DUR, ease: SLIDE_EASE },
-      }),
-      currForm.start({
-        x: formExitX, opacity: 0,
-        transition: { duration: FORM_EXIT_DUR, ease: [0.4, 0, 1, 0.6] },
-      }),
-    ])
-
-    // ── Phase 2: teleport — hide, set enter positions, swap content ──
-    // Set BEFORE setMode so React paints new content at correct start position
-    currImg.set({ opacity: 0, x: 0 })
-    currForm.set({ opacity: 0, x: 0 })
+    // Phase 2: slide image panel to new side
     setMode(target)
-    await new Promise(r => requestAnimationFrame(r))
+    await imageControls.start({
+      x: toRegister ? '0%' : '100%',
+      transition: { type: 'spring', stiffness: 220, damping: 28, mass: 1 },
+    })
 
-    // After mode change: slots have swapped content — use new labels
-    const newImg  = toRegister ? leftControls : rightControls
-    const newForm = toRegister ? rightControls : leftControls
-    newImg.set({ x: imgEnterX, opacity: 0 })
-    newForm.set({ x: formEnterX, opacity: 0 })
-
-    // ── Phase 3: both enter simultaneously (push-slide feel) ──
-    await Promise.all([
-      newImg.start({
-        x: 0, opacity: 1,
-        transition: { type: 'spring', stiffness: 260, damping: 30, mass: 0.85 },
-      }),
-      newForm.start({
-        x: 0, opacity: 1,
-        transition: { type: 'spring', stiffness: 260, damping: 30, mass: 0.85 },
-      }),
-    ])
+    // Phase 3: fade in new form
+    await (toRegister ? registerControls : loginControls).start({
+      opacity: 1,
+      transition: { duration: 0.22, ease: 'easeOut' },
+    })
 
     setAnimating(false)
   }
@@ -314,10 +318,11 @@ export default function AuthPage({ initialMode = 'login' }) {
     }
   }
 
-  const isLogin = mode === 'login'
-
-  // Slot styles — NEVER change (no position flicker)
-  const slotBase = { position: 'absolute', top: 0, bottom: 0, width: '50%', overflow: 'hidden' }
+  const formSlot = {
+    position: 'absolute', top: 0, bottom: 0, width: '50%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 56px',
+    zIndex: 5,
+  }
 
   return (
     <>
@@ -325,37 +330,42 @@ export default function AuthPage({ initialMode = 'login' }) {
 
       <div style={{ height: '100vh', width: '100%', background: '#0A0A12', position: 'relative', overflow: 'hidden' }}>
 
-        {/* ── LEFT slot ─────────────────────────────────────────── */}
-        <div style={{ ...slotBase, left: 0 }}>
-          <motion.div
-            animate={leftControls}
-            style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 56px' }}
-          >
-            {isLogin
-              ? <FormContent mode={mode} loginForm={loginForm} setL={setL} registerForm={registerForm} setR={setR} onLogin={handleLogin} onRegister={handleRegister} onSwitch={() => switchMode('register')} />
-              : <ImagePanel gradientDir="right" />
-            }
-          </motion.div>
-        </div>
+        {/* ── Login form — always LEFT ──────────────────────────────── */}
+        <motion.div
+          animate={loginControls}
+          initial={{ opacity: initialMode === 'login' ? 1 : 0 }}
+          style={{ ...formSlot, left: 0, pointerEvents: mode === 'login' && !animating ? 'auto' : 'none' }}
+        >
+          <LoginForm form={loginForm} setField={setL} onSubmit={handleLogin} />
+        </motion.div>
 
-        {/* ── Divider ──────────────────────────────────────────── */}
-        <div style={{
-          position: 'absolute', top: 0, bottom: 0, left: '50%', width: '1px', zIndex: 10, pointerEvents: 'none',
-          background: 'linear-gradient(to bottom, transparent 0%, rgba(201,162,39,0.22) 25%, rgba(201,162,39,0.22) 75%, transparent 100%)',
-        }} />
+        {/* ── Register form — always RIGHT ─────────────────────────── */}
+        <motion.div
+          animate={registerControls}
+          initial={{ opacity: initialMode === 'register' ? 1 : 0 }}
+          style={{ ...formSlot, left: '50%', pointerEvents: mode === 'register' && !animating ? 'auto' : 'none' }}
+        >
+          <RegisterForm form={registerForm} setField={setR} onSubmit={handleRegister} />
+        </motion.div>
 
-        {/* ── RIGHT slot ────────────────────────────────────────── */}
-        <div style={{ ...slotBase, left: '50%' }}>
-          <motion.div
-            animate={rightControls}
-            style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 56px' }}
-          >
-            {isLogin
-              ? <ImagePanel gradientDir="left" />
-              : <FormContent mode={mode} loginForm={loginForm} setL={setL} registerForm={registerForm} setR={setR} onLogin={handleLogin} onRegister={handleRegister} onSwitch={() => switchMode('login')} />
-            }
-          </motion.div>
-        </div>
+        {/* ── Sliding image panel — covers whichever form is inactive ── */}
+        {/* x:'0%'  = left half  (register mode — covers login form)     */}
+        {/* x:'100%'= right half (login mode   — covers register form)   */}
+        <motion.div
+          animate={imageControls}
+          initial={{ x: initialMode === 'login' ? '100%' : '0%' }}
+          style={{
+            position: 'absolute', top: 0, bottom: 0, left: 0, width: '50%',
+            zIndex: 10,
+            boxShadow: '0 0 60px rgba(0,0,0,0.7)',
+          }}
+        >
+          <SlidingPanel
+            mode={mode}
+            onSwitch={() => switchMode(mode === 'login' ? 'register' : 'login')}
+            disabled={animating}
+          />
+        </motion.div>
 
       </div>
     </>
