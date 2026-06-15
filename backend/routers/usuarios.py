@@ -2,7 +2,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from database import get_db
-from dependencies.auth import get_current_user, require_admin
+from dependencies.auth import get_current_user, require_admin, require_funcionario
 from schemas.usuario import MeOut, RolEnum, EstadoVerificacionEnum, UsuarioOut, UsuarioUpdate
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])

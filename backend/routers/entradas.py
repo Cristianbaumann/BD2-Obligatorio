@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from database import get_db
-from dependencies.auth import get_current_user
+from dependencies.auth import get_current_user, require_any_role
 from schemas.entrada import (
     EntradaConInfoOut, EntradaDetalleOut, EventoInfo,
     QrInfo, TitularInfo, TransferenciaHistorialItem,
