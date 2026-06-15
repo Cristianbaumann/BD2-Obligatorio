@@ -18,7 +18,7 @@ def create_transferencia():
 
 
 @router.get("/{id}")
-def get_transferencia(id: int):
+def get_transferencia(id: str):
     # TODO: get transferencia by id
     pass
 
