@@ -6,6 +6,7 @@ from datetime import datetime
 class EntradaVentaItem(BaseModel):
     evento_id: str
     sector_id: int
+    cantidad: int = 1
 
 
 class VentaCreate(BaseModel):
@@ -16,8 +17,12 @@ class VentaCreate(BaseModel):
     def validar_cantidad(cls, v):
         if len(v) == 0:
             raise ValueError("Debe incluir al menos 1 entrada")
-        if len(v) > 5:
-            raise ValueError("Máximo 5 entradas por venta")
+        for item in v:
+            if item.cantidad < 1:
+                raise ValueError("Cada cantidad debe ser al menos 1")
+        total = sum(item.cantidad for item in v)
+        if total > 5:
+            raise ValueError("Máximo 5 entradas por transacción")
         return v
 
 
@@ -29,6 +34,10 @@ class EntradaOut(BaseModel):
     evento_id: str
     sector_id: int
     consumido: bool
+
+
+class VentaEstadoUpdate(BaseModel):
+    nuevo_estado: str
 
 
 class VentaOut(BaseModel):
