@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 
 
@@ -16,7 +16,7 @@ class EventoCreate(BaseModel):
     estadio_localidad: str
     estadio_calle: str
     estadio_numero: str
-    sectores: List[EventoSectorItem]
+    sectores: Optional[List[EventoSectorItem]] = None
 
     @field_validator("equipo_visitante_id")
     @classmethod
@@ -41,3 +41,22 @@ class EventoSectorOut(BaseModel):
     evento_id: str
     sector_id: int
     costo: float
+
+
+class EventoRichOut(BaseModel):
+    id: str
+    fecha: datetime
+    equipo_local: str
+    equipo_visitante: str
+    estadio: str
+    precio_minimo: Optional[float] = None
+    capacidad: Optional[int] = None
+    entradas_disponibles: Optional[int] = None
+
+
+class SectorDisponibilidadOut(BaseModel):
+    sector_id: int
+    nombre: str
+    costo: float
+    total: int
+    disponibles: int
