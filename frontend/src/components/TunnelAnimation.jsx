@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import useAuthStore from '../store/authStore'
 
 const RECTS = Array.from({ length: 8 }, (_, i) => ({
@@ -11,6 +11,7 @@ const RECTS = Array.from({ length: 8 }, (_, i) => ({
 
 export default function TunnelAnimation({ onComplete }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { rol } = useAuthStore()
 
   useEffect(() => {
@@ -18,7 +19,9 @@ export default function TunnelAnimation({ onComplete }) {
       if (onComplete) {
         onComplete()
       } else {
-        if (rol === 'ADMIN') navigate('/admin/dashboard')
+        const from = location.state?.from?.pathname
+        if (from) navigate(from, { replace: true })
+        else if (rol === 'ADMIN') navigate('/admin/dashboard')
         else if (rol === 'FUNCIONARIO') navigate('/funcionario/dashboard')
         else navigate('/dashboard')
       }

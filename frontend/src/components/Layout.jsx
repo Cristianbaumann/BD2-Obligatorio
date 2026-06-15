@@ -1,5 +1,5 @@
-import { Link, useLocation } from 'react-router-dom'
-import { LogOut, ArrowLeft, Trophy } from 'lucide-react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { LogOut, ArrowLeft, Trophy, LogIn } from 'lucide-react'
 import useAuthStore from '../store/authStore'
 
 function NavLink({ to, label }) {
@@ -33,7 +33,8 @@ export default function Layout({
   backLabel = 'Volver',
   rightSlot = null,
 }) {
-  const { logout, user } = useAuthStore()
+  const { logout, user, token } = useAuthStore()
+  const navigate = useNavigate()
 
   return (
     <div className="ambient-bg" style={{ minHeight: '100vh' }}>
@@ -77,14 +78,25 @@ export default function Layout({
             </span>
           )}
           {rightSlot}
-          <button
-            onClick={logout}
-            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '6px 10px', borderRadius: '6px', transition: 'all 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#C9A227'; e.currentTarget.style.background = 'rgba(201,162,39,0.08)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'none' }}
-          >
-            <LogOut size={15} /> Salir
-          </button>
+          {token ? (
+            <button
+              onClick={logout}
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '6px 10px', borderRadius: '6px', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#C9A227'; e.currentTarget.style.background = 'rgba(201,162,39,0.08)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'none' }}
+            >
+              <LogOut size={15} /> Salir
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate('/login')}
+              style={{ background: '#C9A227', border: 'none', color: '#0A0A12', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontFamily: 'Bebas Neue, cursive', letterSpacing: '1.5px', padding: '7px 16px', borderRadius: '6px', transition: 'background 0.14s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#E4BC3A' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#C9A227' }}
+            >
+              <LogIn size={14} /> Ingresar
+            </button>
+          )}
         </div>
       </nav>
 

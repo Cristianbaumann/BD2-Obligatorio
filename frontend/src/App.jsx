@@ -61,11 +61,7 @@ export default function App() {
             <UsuarioDashboard />
           </ProtectedRoute>
         } />
-        <Route path="/eventos" element={
-          <ProtectedRoute allowedRoles={['USUARIO_FINAL']}>
-            <Eventos />
-          </ProtectedRoute>
-        } />
+        <Route path="/eventos" element={<Eventos />} />
         <Route path="/comprar/:eventoId" element={
           <ProtectedRoute allowedRoles={['USUARIO_FINAL']}>
             <ComprarEntrada />

@@ -6,8 +6,10 @@ import { Building2 } from 'lucide-react'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
 import MatchCard from '../../components/MatchCard'
+import useAuthStore from '../../store/authStore'
 
 const USER_LINKS = [['Eventos', '/eventos'], ['Mis Entradas', '/mis-entradas'], ['Transferir', '/transferir']]
+const PUBLIC_LINKS = [['Eventos', '/eventos']]
 
 function FootballLoader() {
   return (
@@ -24,6 +26,7 @@ function FootballLoader() {
 
 export default function Eventos() {
   const navigate = useNavigate()
+  const { token } = useAuthStore()
   const [eventos, setEventos] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -34,8 +37,16 @@ export default function Eventos() {
       .finally(() => setLoading(false))
   }, [])
 
+  function handleComprar(eventoId) {
+    if (!token) {
+      navigate('/login', { state: { from: { pathname: `/comprar/${eventoId}` } } })
+      return
+    }
+    navigate(`/comprar/${eventoId}`)
+  }
+
   return (
-    <Layout links={USER_LINKS}>
+    <Layout links={token ? USER_LINKS : PUBLIC_LINKS}>
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '48px 24px' }}>
         <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: '36px' }}>
           <h1 className="gold-glow-text" style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '52px', color: '#C9A227', marginBottom: '4px' }}>
@@ -69,7 +80,7 @@ export default function Eventos() {
                   price={e.precio_minimo}
                   remaining={e.entradas_disponibles}
                   total={e.capacidad}
-                  onClick={() => navigate(`/comprar/${e.id}`)}
+                  onClick={() => handleComprar(e.id)}
                 />
               )
             })}
