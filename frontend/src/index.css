@@ -19,6 +19,41 @@
   --navy: #0E1A2E;
   --blue: #1A3A5C;
   --red: #E63946;
+
+  /* match card design tokens */
+  --font-display: 'Bebas Neue', cursive;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --surface-card: rgba(14, 26, 46, 0.85);
+  --surface-card-2: rgba(26, 58, 92, 0.7);
+  --surface-sunken: rgba(0, 0, 0, 0.35);
+  --border: rgba(255,255,255,0.12);
+  --border-gold: rgba(201,162,39,0.22);
+  --border-gold-strong: rgba(201,162,39,0.5);
+  --border-soft: rgba(255,255,255,0.06);
+  --radius-md: 14px;
+  --radius-xs: 5px;
+  --text-primary: #fff;
+  --text-secondary: rgba(255,255,255,0.5);
+  --text-tertiary: rgba(255,255,255,0.28);
+  --text-gold: #C9A227;
+  --gold-bright: #D4AE3A;
+  --gold-100: rgba(201,162,39,0.12);
+  --avail-open: #22c55e;
+  --avail-low: #f97316;
+  --avail-sold: #ef4444;
+  --avail-open-100: rgba(34,197,94,0.1);
+  --red-100: rgba(239,68,68,0.1);
+  --red-bright: #FF6B72;
+  --glow-gold-lg: 0 0 0 1px rgba(201,162,39,0.4), 0 20px 40px -15px rgba(0,0,0,0.95), 0 0 50px -20px rgba(201,162,39,0.25);
+  --dur-base: 0.18s;
+  --dur-slow: 0.6s;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes match-card-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 *, *::before, *::after {

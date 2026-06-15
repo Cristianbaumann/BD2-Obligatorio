@@ -6,6 +6,14 @@ import useAuthStore from '../store/authStore'
 import api from '../services/api'
 import TunnelAnimation from '../components/TunnelAnimation'
 
+function extractDetail(err, fallback = 'Error') {
+  const d = err?.response?.data?.detail
+  if (!d) return fallback
+  if (typeof d === 'string') return d
+  if (Array.isArray(d)) return d.map(x => x.msg).join('; ')
+  return fallback
+}
+
 const SLIDES = [
   '/assets/mundial/img1.jpg',
   '/assets/mundial/img2.jpg',
@@ -303,7 +311,7 @@ export default function AuthPage({ initialMode = 'login' }) {
       login(access_token, userData)
       setShowTunnel(true)
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Credenciales incorrectas')
+      toast.error(extractDetail(err, 'Credenciales incorrectas'))
     }
   }
 
@@ -314,7 +322,7 @@ export default function AuthPage({ initialMode = 'login' }) {
       toast.success('¡Cuenta creada! Iniciá sesión.')
       await switchMode('login')
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Error al registrarse')
+      toast.error(extractDetail(err, 'Error al registrarse'))
     }
   }
 
