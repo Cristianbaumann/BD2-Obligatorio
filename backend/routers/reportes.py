@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from dependencies.auth import require_admin, require_any_role
-from schemas.reporte import CoberturFuncionarioOut, DisponibilidadOut, EventoMasVendidoOut, CoberturaFuncionarioOut, DisponibilidadEventoOut, MayorCompradorOut
+from schemas.reporte import CoberturFuncionarioOut, DisponibilidadOut, EventoMasVendidoOut, MayorCompradorOut
 from database import get_db
 
 router = APIRouter(prefix="/reportes", tags=["reportes"])
