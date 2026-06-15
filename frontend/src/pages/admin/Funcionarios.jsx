@@ -5,8 +5,16 @@ import toast from 'react-hot-toast'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
 
-const ADMIN_LINKS = [['Eventos', '/admin/eventos'], ['Estadios', '/admin/estadios'], ['Funcionarios', '/admin/funcionarios']]
+const ADMIN_LINKS = [['Eventos', '/admin/eventos'], ['Estadios', '/admin/estadios'], ['Funcionarios', '/admin/funcionarios'], ['Configuración', '/admin/configuracion']]
 const EMPTY_FORM = { funcionario_id: '', evento_id: '', sector: '' }
+
+function extractDetail(err, fallback = 'Error') {
+  const d = err?.response?.data?.detail
+  if (!d) return fallback
+  if (typeof d === 'string') return d
+  if (Array.isArray(d)) return d.map(x => x.msg).join('; ')
+  return fallback
+}
 
 export default function AdminFuncionarios() {
   const [funcionarios, setFuncionarios] = useState([])
@@ -36,7 +44,7 @@ export default function AdminFuncionarios() {
       setShowAssign(false)
       setForm(EMPTY_FORM)
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Error al asignar')
+      toast.error(extractDetail(err, 'Error al asignar'))
     }
   }
 
