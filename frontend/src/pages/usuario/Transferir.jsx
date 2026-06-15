@@ -7,6 +7,14 @@ import Layout from '../../components/Layout'
 
 const USER_LINKS = [['Eventos', '/eventos'], ['Mis Entradas', '/mis-entradas'], ['Transferir', '/transferir']]
 
+function extractDetail(err, fallback = 'Error') {
+  const d = err?.response?.data?.detail
+  if (!d) return fallback
+  if (typeof d === 'string') return d
+  if (Array.isArray(d)) return d.map(x => x.msg).join('; ')
+  return fallback
+}
+
 export default function Transferir() {
   const [entradas, setEntradas] = useState([])
   const [form, setForm] = useState({ entrada_id: '', mail_destino: '' })
@@ -34,7 +42,7 @@ export default function Transferir() {
       const r = await api.get('/entradas/mis-entradas')
       setEntradas((r.data || []).filter(e => e.estado === 'ACTIVA' || !e.estado))
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Error al transferir')
+      toast.error(extractDetail(err, 'Error al transferir'))
     } finally {
       setLoading(false)
     }
