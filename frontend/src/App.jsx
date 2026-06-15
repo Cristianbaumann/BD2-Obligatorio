@@ -19,6 +19,7 @@ import AdminDashboard from './pages/admin/Dashboard'
 import AdminEventos from './pages/admin/Eventos'
 import AdminEstadios from './pages/admin/Estadios'
 import AdminFuncionarios from './pages/admin/Funcionarios'
+import AdminConfiguracion from './pages/admin/Configuracion'
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { token, rol } = useAuthStore()
@@ -110,6 +111,11 @@ export default function App() {
         <Route path="/admin/funcionarios" element={
           <ProtectedRoute allowedRoles={['ADMIN']}>
             <AdminFuncionarios />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/configuracion" element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <AdminConfiguracion />
           </ProtectedRoute>
         } />
 
