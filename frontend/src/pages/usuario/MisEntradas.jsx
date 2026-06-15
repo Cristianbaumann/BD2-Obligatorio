@@ -1,25 +1,243 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Ticket, ChevronDown, ChevronUp } from 'lucide-react'
+import { Ticket, ChevronDown, ChevronUp, ArrowRightLeft, X, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import QRCountdown from '../../components/QRCountdown'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
 
-const USER_LINKS = [['Eventos', '/eventos'], ['Mis Entradas', '/mis-entradas'], ['Transferir', '/transferir']]
+const USER_LINKS = [['Eventos', '/eventos'], ['Mis Entradas', '/mis-entradas']]
 
-function EntradaRow({ entrada }) {
+function TransferModal({ modal, onClose, onSuccess }) {
+  const [email, setEmail] = useState('')
+  const [sending, setSending] = useState(false)
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    if (!email.trim()) return
+    setSending(true)
+    api.post('/transferencias', { entrada_id: modal.entradaId, mail_destino: email.trim() })
+      .then(() => {
+        toast.success('Entrada transferida correctamente')
+        onSuccess()
+        onClose()
+      })
+      .catch(err => {
+        const detail = err.response?.data?.detail || 'Error al transferir'
+        toast.error(detail)
+      })
+      .finally(() => setSending(false))
+  }
+
+  return (
+    <AnimatePresence>
+      {modal && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={onClose}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.65)',
+              backdropFilter: 'blur(4px)',
+              zIndex: 200,
+            }}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.94, y: 8 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: 201,
+              width: 'min(460px, calc(100vw - 32px))',
+              background: 'rgba(10,16,30,0.98)',
+              border: '1px solid rgba(201,162,39,0.25)',
+              borderRadius: '12px',
+              padding: '28px 28px 24px',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,162,39,0.08)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{
+                  fontFamily: 'Bebas Neue, cursive',
+                  fontSize: '28px',
+                  color: '#fff',
+                  letterSpacing: '1px',
+                  margin: '0 0 4px 0',
+                }}>
+                  Transferir Entrada
+                </h2>
+                <p style={{
+                  fontFamily: 'JetBrains Mono, monospace',
+                  fontSize: '11px',
+                  color: 'rgba(201,162,39,0.7)',
+                  margin: 0,
+                }}>
+                  {modal.label}
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.35)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '6px',
+                  transition: 'color 0.14s',
+                  flexShrink: 0,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#fff' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.35)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              padding: '10px 12px',
+              background: 'rgba(230,57,70,0.08)',
+              border: '1px solid rgba(230,57,70,0.2)',
+              borderRadius: '8px',
+              marginBottom: '20px',
+            }}>
+              <AlertTriangle size={14} color="#E63946" style={{ flexShrink: 0, marginTop: '1px' }} />
+              <p style={{
+                fontFamily: 'Inter, sans-serif',
+                fontSize: '12px',
+                color: 'rgba(255,255,255,0.5)',
+                margin: 0,
+                lineHeight: 1.45,
+              }}>
+                Esta acción es <strong style={{ color: '#E63946' }}>irreversible</strong>. La entrada se transferirá permanentemente al destinatario.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  letterSpacing: '1px',
+                  color: 'rgba(255,255,255,0.45)',
+                  textTransform: 'uppercase',
+                  marginBottom: '6px',
+                }}>
+                  Email del destinatario
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="usuario@ejemplo.com"
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px',
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(201,162,39,0.2)',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: '14px',
+                    outline: 'none',
+                    transition: 'border-color 0.14s',
+                    boxSizing: 'border-box',
+                  }}
+                  onFocus={e => { e.currentTarget.style.borderColor = 'rgba(201,162,39,0.6)' }}
+                  onBlur={e => { e.currentTarget.style.borderColor = 'rgba(201,162,39,0.2)' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  style={{
+                    flex: 1,
+                    padding: '11px',
+                    background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: '8px',
+                    color: 'rgba(255,255,255,0.5)',
+                    fontFamily: 'Bebas Neue, cursive',
+                    fontSize: '15px',
+                    letterSpacing: '1.5px',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.14s, color 0.14s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = '#fff' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={sending || !email.trim()}
+                  style={{
+                    flex: 1,
+                    padding: '11px',
+                    background: sending || !email.trim() ? 'rgba(230,57,70,0.3)' : '#E63946',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    fontFamily: 'Bebas Neue, cursive',
+                    fontSize: '15px',
+                    letterSpacing: '1.5px',
+                    cursor: sending || !email.trim() ? 'not-allowed' : 'pointer',
+                    transition: 'background 0.14s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                  }}
+                  onMouseEnter={e => { if (!sending && email.trim()) e.currentTarget.style.background = '#c4303c' }}
+                  onMouseLeave={e => { if (!sending && email.trim()) e.currentTarget.style.background = '#E63946' }}
+                >
+                  {sending ? (
+                    <div style={{ width: '14px', height: '14px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', animation: 'football-spin 0.7s linear infinite' }} />
+                  ) : (
+                    <><ArrowRightLeft size={14} /> Confirmar</>
+                  )}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  )
+}
+
+function EntradaRow({ entrada, onTransfer }) {
   const [open, setOpen] = useState(false)
+  const isActiva = !entrada.consumido
 
   return (
     <div style={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}>
       <div
-        onClick={() => !entrada.consumido && setOpen(o => !o)}
+        onClick={() => isActiva && setOpen(o => !o)}
         style={{
           padding: '11px 14px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
-          cursor: entrada.consumido ? 'default' : 'pointer',
+          cursor: isActiva ? 'pointer' : 'default',
         }}
       >
         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>
@@ -29,15 +247,41 @@ function EntradaRow({ entrada }) {
           ${entrada.costo.toLocaleString('es-UY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {isActiva && (
+            <button
+              onClick={e => { e.stopPropagation(); onTransfer(entrada.id, `#${String(entrada.id).padStart(6, '0')}`) }}
+              title="Transferir esta entrada"
+              style={{
+                background: 'none',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'rgba(255,255,255,0.35)',
+                cursor: 'pointer',
+                borderRadius: '5px',
+                padding: '3px 8px',
+                fontSize: '10px',
+                fontFamily: 'Inter, sans-serif',
+                fontWeight: 500,
+                letterSpacing: '0.5px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                transition: 'all 0.14s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,162,39,0.4)'; e.currentTarget.style.color = '#C9A227' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.35)' }}
+            >
+              <ArrowRightLeft size={10} /> Transferir
+            </button>
+          )}
           <span style={{
             fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', padding: '2px 8px', borderRadius: '20px',
-            background: !entrada.consumido ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
-            color: !entrada.consumido ? '#22c55e' : '#ef4444',
-            border: `1px solid ${!entrada.consumido ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+            background: isActiva ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
+            color: isActiva ? '#22c55e' : '#ef4444',
+            border: `1px solid ${isActiva ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
           }}>
             {entrada.consumido ? 'CONSUMIDA' : 'ACTIVA'}
           </span>
-          {!entrada.consumido && (open
+          {isActiva && (open
             ? <ChevronUp size={13} color="rgba(255,255,255,0.25)" />
             : <ChevronDown size={13} color="rgba(255,255,255,0.25)" />
           )}
@@ -45,7 +289,7 @@ function EntradaRow({ entrada }) {
       </div>
 
       <AnimatePresence>
-        {open && !entrada.consumido && (
+        {open && isActiva && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -63,7 +307,7 @@ function EntradaRow({ entrada }) {
   )
 }
 
-function SectorGroup({ sectorNombre, entradas }) {
+function SectorGroup({ sectorNombre, entradas, onTransfer }) {
   const activas = entradas.filter(e => !e.consumido).length
   return (
     <div style={{ marginBottom: '14px' }}>
@@ -78,13 +322,13 @@ function SectorGroup({ sectorNombre, entradas }) {
         </span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-        {entradas.map(e => <EntradaRow key={e.id} entrada={e} />)}
+        {entradas.map(e => <EntradaRow key={e.id} entrada={e} onTransfer={onTransfer} />)}
       </div>
     </div>
   )
 }
 
-function EventGroup({ evento, entradas, index }) {
+function EventGroup({ evento, entradas, index, onTransfer }) {
   const hasActive = entradas.some(e => !e.consumido)
   const [open, setOpen] = useState(hasActive)
 
@@ -141,7 +385,7 @@ function EventGroup({ evento, entradas, index }) {
           >
             <div style={{ padding: '18px 24px 20px' }}>
               {Object.entries(bySector).map(([sectorNombre, sEntradas]) => (
-                <SectorGroup key={sectorNombre} sectorNombre={sectorNombre} entradas={sEntradas} />
+                <SectorGroup key={sectorNombre} sectorNombre={sectorNombre} entradas={sEntradas} onTransfer={onTransfer} />
               ))}
             </div>
           </motion.div>
@@ -154,13 +398,17 @@ function EventGroup({ evento, entradas, index }) {
 export default function MisEntradas() {
   const [entradas, setEntradas] = useState([])
   const [loading, setLoading] = useState(true)
+  const [transferModal, setTransferModal] = useState(null)
 
-  useEffect(() => {
+  function fetchEntradas() {
+    setLoading(true)
     api.get('/entradas/mis-entradas')
       .then(r => setEntradas(r.data))
       .catch(() => toast.error('Error al cargar tus entradas'))
       .finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(() => { fetchEntradas() }, [])
 
   const eventos = Object.values(
     entradas.reduce((acc, e) => {
@@ -172,6 +420,12 @@ export default function MisEntradas() {
 
   return (
     <Layout links={USER_LINKS}>
+      <TransferModal
+        modal={transferModal}
+        onClose={() => setTransferModal(null)}
+        onSuccess={fetchEntradas}
+      />
+
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '48px 24px' }}>
         <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: '36px' }}>
           <h1 className="gold-glow-text" style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '52px', color: '#C9A227', marginBottom: '4px' }}>
@@ -197,7 +451,13 @@ export default function MisEntradas() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {eventos.map((ev, i) => (
-              <EventGroup key={ev.evento_id} evento={ev.evento} entradas={ev.entradas} index={i} />
+              <EventGroup
+                key={ev.evento_id}
+                evento={ev.evento}
+                entradas={ev.entradas}
+                index={i}
+                onTransfer={(id, label) => setTransferModal({ entradaId: id, label })}
+              />
             ))}
           </div>
         )}

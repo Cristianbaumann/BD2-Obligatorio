@@ -1,136 +1,372 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, useReducedMotion } from 'framer-motion'
-import { Trophy, ChevronRight, Calendar, MapPin } from 'lucide-react'
+import { Trophy, ChevronRight, ChevronLeft, Calendar, MapPin } from 'lucide-react'
 import StadiumBackground from '../components/StadiumBackground'
-import StadiumField from '../components/StadiumField'
 import Spotlight from '../components/ui/Spotlight'
 import api from '../services/api'
 import useAuthStore from '../store/authStore'
 
 const WC_HISTORY = [
-  { year: '1930', host: 'Uruguay', champion: 'Uruguay', runner: 'Argentina', goals: '70 goles en 18 partidos' },
-  { year: '1970', host: 'México', champion: 'Brasil', runner: 'Italia', goals: 'El Brasil de Pelé, Rivelino y Tostão' },
-  { year: '1986', host: 'México', champion: 'Argentina', runner: 'Alemania', goals: 'La mano de Dios y el gol del siglo' },
-  { year: '1994', host: 'Estados Unidos', champion: 'Brasil', runner: 'Italia', goals: 'Primer Mundial decidido en penales' },
-  { year: '2002', host: 'Corea · Japón', champion: 'Brasil', runner: 'Alemania', goals: 'Primer campeón del mundo asiático' },
-  { year: '2022', host: 'Qatar', champion: 'Argentina', runner: 'Francia', goals: 'La final más épica de la historia' },
+  {
+    year: '1930',
+    host: 'Uruguay',
+    champion: 'Uruguay',
+    runner: 'Argentina',
+    story: 'Primer Copa del Mundo de la historia. Uruguay venció a Argentina 4-2 en el Estadio Centenario de Montevideo ante 68.000 espectadores.',
+    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/1930_FIFA_World_Cup.jpg/640px-1930_FIFA_World_Cup.jpg',
+    gradient: 'linear-gradient(135deg, #001B8A 0%, #71A7DB 100%)',
+  },
+  {
+    year: '1970',
+    host: 'México',
+    champion: 'Brasil',
+    runner: 'Italia',
+    story: 'El Brasil de Pelé, Tostão y Rivelino se consagró campeón por tercera vez ganando el trofeo Jules Rimet de manera permanente.',
+    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Pelé_con_la_copa_del_mundo.jpg/640px-Pelé_con_la_copa_del_mundo.jpg',
+    gradient: 'linear-gradient(135deg, #009C3B 0%, #FFDF00 100%)',
+  },
+  {
+    year: '1986',
+    host: 'México',
+    champion: 'Argentina',
+    runner: 'Alemania',
+    story: 'Diego Maradona llevó a Argentina a la gloria con el "Gol del Siglo" contra Inglaterra. Una de las actuaciones individuales más grandes del deporte.',
+    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Maradona_-_Argetina_vs_England_1986.jpg/640px-Maradona_-_Argetina_vs_England_1986.jpg',
+    gradient: 'linear-gradient(135deg, #74ACDF 0%, #F6B40E 100%)',
+  },
+  {
+    year: '1994',
+    host: 'Estados Unidos',
+    champion: 'Brasil',
+    runner: 'Italia',
+    story: 'Primera final decidida en penales. Brasil ganó su cuarto título. Roberto Baggio lanzó el último penal al cielo del Rose Bowl.',
+    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c0/1994_FIFA_World_Cup.jpg/640px-1994_FIFA_World_Cup.jpg',
+    gradient: 'linear-gradient(135deg, #3C3B6E 0%, #B22234 100%)',
+  },
+  {
+    year: '2002',
+    host: 'Corea · Japón',
+    champion: 'Brasil',
+    runner: 'Alemania',
+    story: 'Primer Mundial en Asia. Ronaldo Nazário se reivindicó marcando dos goles en la final y ganando la Bota de Oro del torneo.',
+    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/2002_FIFA_World_Cup_Official_Poster.jpg/640px-2002_FIFA_World_Cup_Official_Poster.jpg',
+    gradient: 'linear-gradient(135deg, #C60C30 0%, #003580 100%)',
+  },
+  {
+    year: '2022',
+    host: 'Qatar',
+    champion: 'Argentina',
+    runner: 'Francia',
+    story: 'Lionel Messi consiguió el único título que le faltaba en la final más épica de la historia. Argentina ganó en penales después de remontar 2-0.',
+    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/2022_FIFA_World_Cup_Argentina_celebrate.jpg/640px-2022_FIFA_World_Cup_Argentina_celebrate.jpg',
+    gradient: 'linear-gradient(135deg, #8D1B3D 0%, #1A1A2E 100%)',
+  },
 ]
 
-function SkeletonCard() {
+function WCImage({ src, alt, gradient }) {
+  const [failed, setFailed] = useState(false)
+
+  if (failed) {
+    return (
+      <div style={{
+        width: '100%',
+        aspectRatio: '16/9',
+        borderRadius: '8px',
+        background: gradient,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <Trophy size={32} color="rgba(255,255,255,0.3)" />
+      </div>
+    )
+  }
+
   return (
-    <div style={{
-      background: 'rgba(14,26,46,0.5)',
-      border: '1px solid rgba(26,58,92,0.3)',
-      borderRadius: '8px',
-      padding: '20px 24px',
-      height: '120px',
-      animation: 'skeleton-pulse 1.5s ease-in-out infinite',
-    }} />
+    <img
+      src={src}
+      alt={alt}
+      onError={() => setFailed(true)}
+      style={{
+        width: '100%',
+        aspectRatio: '16/9',
+        objectFit: 'cover',
+        borderRadius: '8px',
+        display: 'block',
+      }}
+    />
   )
 }
 
-function ResultCard({ evento, index }) {
-  const fecha = new Date(evento.fecha)
+function TimelineEntry({ entry, index }) {
   const prefersReduced = useReducedMotion()
+  const isRight = index % 2 !== 0
 
   return (
     <motion.div
-      initial={prefersReduced ? {} : { opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05, duration: 0.3 }}
+      initial={prefersReduced ? {} : { opacity: 0, x: isRight ? 40 : -40 }}
+      whileInView={{ opacity: 1, x: 0 }}
+      viewport={{ once: true, margin: '-80px' }}
+      transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
       style={{
-        background: 'rgba(14,26,46,0.8)',
-        border: '1px solid rgba(26,58,92,0.5)',
-        borderRadius: '8px',
-        padding: '18px 22px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '10px',
+        display: 'grid',
+        gridTemplateColumns: '1fr 48px 1fr',
+        gap: '0',
+        alignItems: 'center',
+        marginBottom: '64px',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: '11px',
-          color: 'rgba(255,255,255,0.3)',
-          letterSpacing: '0.5px',
-        }}>
-          {fecha.toLocaleDateString('es-UY', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase()}
-        </span>
-        <span style={{
-          fontFamily: 'Inter, sans-serif',
-          fontSize: '10px',
-          fontWeight: 600,
-          letterSpacing: '1.5px',
-          textTransform: 'uppercase',
-          color: 'rgba(255,255,255,0.35)',
-          background: 'rgba(255,255,255,0.05)',
-          padding: '2px 8px',
-          borderRadius: '4px',
-        }}>
-          Finalizado
-        </span>
-      </div>
-
+      {/* Left slot */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr auto 1fr',
-        alignItems: 'center',
-        gap: '10px',
+        paddingRight: '32px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: isRight ? 'flex-start' : 'flex-end',
+        gap: '12px',
       }}>
-        <span style={{
-          fontFamily: 'Bebas Neue, cursive',
-          fontSize: '15px',
-          color: '#fff',
-          textAlign: 'right',
-          letterSpacing: '0.5px',
-        }}>
-          {evento.equipo_local}
-        </span>
-        <span style={{
-          fontFamily: 'Bebas Neue, cursive',
-          fontSize: '12px',
-          color: 'rgba(201,162,39,0.5)',
-          letterSpacing: '2px',
-        }}>
-          VS
-        </span>
-        <span style={{
-          fontFamily: 'Bebas Neue, cursive',
-          fontSize: '15px',
-          color: '#fff',
-          letterSpacing: '0.5px',
-        }}>
-          {evento.equipo_visitante}
-        </span>
+        {!isRight ? (
+          <ImageAndText entry={entry} align="right" />
+        ) : (
+          <TextOnly entry={entry} align="left" />
+        )}
       </div>
 
-      <p style={{
-        fontFamily: 'Inter, sans-serif',
-        fontSize: '11px',
-        color: 'rgba(255,255,255,0.22)',
-        margin: 0,
+      {/* Center dot + line */}
+      <div style={{
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
-        gap: '4px',
+        gap: '0',
+        position: 'relative',
+        alignSelf: 'stretch',
       }}>
-        <MapPin size={10} /> {evento.estadio}
-      </p>
+        <div style={{
+          width: '12px',
+          height: '12px',
+          borderRadius: '50%',
+          background: '#C9A227',
+          boxShadow: '0 0 16px rgba(201,162,39,0.6)',
+          flexShrink: 0,
+          zIndex: 1,
+          position: 'absolute',
+          top: '50%',
+          transform: 'translateY(-50%)',
+        }} />
+      </div>
+
+      {/* Right slot */}
+      <div style={{
+        paddingLeft: '32px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: isRight ? 'flex-start' : 'flex-end',
+        gap: '12px',
+      }}>
+        {isRight ? (
+          <ImageAndText entry={entry} align="left" />
+        ) : (
+          <TextOnly entry={entry} align="right" />
+        )}
+      </div>
     </motion.div>
   )
 }
 
-function UpcomingCard({ evento, index, onNavigate }) {
+function ImageAndText({ entry, align }) {
+  return (
+    <div style={{
+      width: '100%',
+      maxWidth: '480px',
+      alignSelf: align === 'right' ? 'flex-end' : 'flex-start',
+    }}>
+      <WCImage src={entry.img} alt={`Mundial ${entry.year} - ${entry.host}`} gradient={entry.gradient} />
+      <div style={{ marginTop: '14px' }}>
+        <p style={{
+          fontFamily: 'Bebas Neue, cursive',
+          fontSize: '64px',
+          lineHeight: 0.85,
+          color: '#C9A227',
+          margin: '0 0 6px 0',
+          letterSpacing: '-1px',
+          textAlign: align,
+        }}>
+          {entry.year}
+        </p>
+        <p style={{
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '10px',
+          letterSpacing: '2px',
+          color: 'rgba(255,255,255,0.3)',
+          textTransform: 'uppercase',
+          margin: '0 0 6px 0',
+          textAlign: align,
+        }}>
+          {entry.host}
+        </p>
+        <p style={{
+          fontFamily: 'Bebas Neue, cursive',
+          fontSize: '24px',
+          color: '#fff',
+          margin: '0 0 4px 0',
+          letterSpacing: '1px',
+          textAlign: align,
+        }}>
+          {entry.champion}
+        </p>
+        <p style={{
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '11px',
+          color: 'rgba(255,255,255,0.28)',
+          margin: '0 0 10px 0',
+          textAlign: align,
+        }}>
+          Final vs {entry.runner}
+        </p>
+        <p style={{
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '13px',
+          color: 'rgba(255,255,255,0.5)',
+          lineHeight: 1.55,
+          margin: 0,
+          textAlign: align,
+        }}>
+          {entry.story}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function TextOnly({ entry, align }) {
+  return (
+    <div style={{
+      maxWidth: '320px',
+      alignSelf: align === 'right' ? 'flex-end' : 'flex-start',
+    }}>
+      <p style={{
+        fontFamily: 'Bebas Neue, cursive',
+        fontSize: '72px',
+        lineHeight: 0.85,
+        color: 'rgba(201,162,39,0.15)',
+        margin: '0 0 6px 0',
+        letterSpacing: '-2px',
+        textAlign: align,
+      }}>
+        {entry.year}
+      </p>
+      <p style={{
+        fontFamily: 'Bebas Neue, cursive',
+        fontSize: '20px',
+        color: 'rgba(255,255,255,0.6)',
+        margin: '0 0 4px 0',
+        letterSpacing: '0.5px',
+        textAlign: align,
+      }}>
+        {entry.champion}
+      </p>
+      <p style={{
+        fontFamily: 'Inter, sans-serif',
+        fontSize: '12px',
+        color: 'rgba(255,255,255,0.25)',
+        textAlign: align,
+      }}>
+        {entry.host}
+      </p>
+    </div>
+  )
+}
+
+function ResultCard({ evento }) {
+  const fecha = new Date(evento.fecha)
+  return (
+    <div style={{
+      minWidth: '220px',
+      maxWidth: '220px',
+      background: 'rgba(14,26,46,0.8)',
+      border: '1px solid rgba(26,58,92,0.5)',
+      borderRadius: '8px',
+      padding: '16px',
+      scrollSnapAlign: 'start',
+      flexShrink: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '10px',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '10px',
+          color: 'rgba(255,255,255,0.25)',
+        }}>
+          {fecha.toLocaleDateString('es-UY', { day: 'numeric', month: 'short' }).toUpperCase()}
+        </span>
+        <span style={{
+          fontSize: '9px',
+          fontWeight: 700,
+          letterSpacing: '1px',
+          color: 'rgba(255,255,255,0.3)',
+          background: 'rgba(255,255,255,0.05)',
+          padding: '2px 6px',
+          borderRadius: '3px',
+          textTransform: 'uppercase',
+        }}>
+          Finalizado
+        </span>
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <p style={{
+          fontFamily: 'Bebas Neue, cursive',
+          fontSize: '14px',
+          color: '#fff',
+          margin: '0 0 4px 0',
+          letterSpacing: '0.5px',
+          lineHeight: 1.2,
+        }}>
+          {evento.equipo_local}
+        </p>
+        <p style={{
+          fontFamily: 'Bebas Neue, cursive',
+          fontSize: '10px',
+          color: 'rgba(201,162,39,0.5)',
+          margin: '0 0 4px 0',
+          letterSpacing: '2px',
+        }}>
+          VS
+        </p>
+        <p style={{
+          fontFamily: 'Bebas Neue, cursive',
+          fontSize: '14px',
+          color: '#fff',
+          margin: 0,
+          letterSpacing: '0.5px',
+          lineHeight: 1.2,
+        }}>
+          {evento.equipo_visitante}
+        </p>
+      </div>
+      <p style={{
+        fontFamily: 'Inter, sans-serif',
+        fontSize: '10px',
+        color: 'rgba(255,255,255,0.2)',
+        margin: 0,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '3px',
+        justifyContent: 'center',
+      }}>
+        <MapPin size={9} /> {evento.estadio}
+      </p>
+    </div>
+  )
+}
+
+function UpcomingCard({ evento, onNavigate }) {
   const fecha = new Date(evento.fecha)
   const [hovered, setHovered] = useState(false)
-  const prefersReduced = useReducedMotion()
 
   return (
-    <motion.div
-      initial={prefersReduced ? {} : { opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.08, duration: 0.35 }}
+    <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={() => onNavigate('/eventos')}
@@ -154,143 +390,24 @@ function UpcomingCard({ evento, index, onNavigate }) {
           {fecha.toLocaleDateString('es-UY', { day: 'numeric', month: 'short' }).toUpperCase()} · {fecha.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' })}
         </div>
         {evento.precio_minimo && (
-          <span style={{
-            fontFamily: 'JetBrains Mono, monospace',
-            fontSize: '12px',
-            color: '#C9A227',
-            fontWeight: 600,
-          }}>
+          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: '#C9A227', fontWeight: 600 }}>
             desde ${evento.precio_minimo.toLocaleString()}
           </span>
         )}
       </div>
-
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr auto 1fr',
-        alignItems: 'center',
-        gap: '10px',
-      }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '10px' }}>
         <span style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '17px', color: '#fff', textAlign: 'right', letterSpacing: '0.5px' }}>
           {evento.equipo_local}
         </span>
-        <span style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '13px', color: 'rgba(201,162,39,0.6)', letterSpacing: '2px' }}>
-          VS
-        </span>
+        <span style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '13px', color: 'rgba(201,162,39,0.6)', letterSpacing: '2px' }}>VS</span>
         <span style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '17px', color: '#fff', letterSpacing: '0.5px' }}>
           {evento.equipo_visitante}
         </span>
       </div>
-
-      <p style={{
-        fontFamily: 'Inter, sans-serif',
-        fontSize: '11px',
-        color: 'rgba(255,255,255,0.25)',
-        margin: 0,
-        display: 'flex',
-        alignItems: 'center',
-        gap: '4px',
-      }}>
+      <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: 'rgba(255,255,255,0.25)', margin: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
         <MapPin size={10} /> {evento.estadio}
       </p>
-    </motion.div>
-  )
-}
-
-function HistoryCard({ entry, index }) {
-  const [hovered, setHovered] = useState(false)
-  const prefersReduced = useReducedMotion()
-
-  return (
-    <motion.div
-      initial={prefersReduced ? {} : { opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-60px' }}
-      transition={{ delay: index * 0.07, duration: 0.4 }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: 'rgba(14,26,46,0.75)',
-        border: `1px solid ${hovered ? 'rgba(201,162,39,0.45)' : 'rgba(26,58,92,0.45)'}`,
-        borderRadius: '8px',
-        padding: '28px 24px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '10px',
-        cursor: 'default',
-        transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s',
-        transform: hovered ? 'translateY(-3px)' : 'none',
-        boxShadow: hovered ? '0 8px 32px rgba(201,162,39,0.12)' : 'none',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      <span style={{
-        position: 'absolute',
-        right: '-10px',
-        top: '-8px',
-        fontFamily: 'Bebas Neue, cursive',
-        fontSize: '100px',
-        lineHeight: 1,
-        color: hovered ? 'rgba(201,162,39,0.07)' : 'rgba(201,162,39,0.04)',
-        transition: 'color 0.3s',
-        pointerEvents: 'none',
-        userSelect: 'none',
-      }}>
-        {entry.year}
-      </span>
-
-      <span style={{
-        fontFamily: 'Bebas Neue, cursive',
-        fontSize: '42px',
-        lineHeight: 1,
-        color: hovered ? '#C9A227' : 'rgba(201,162,39,0.5)',
-        transition: 'color 0.2s',
-        letterSpacing: '-0.5px',
-      }}>
-        {entry.year}
-      </span>
-
-      <div>
-        <p style={{
-          fontFamily: 'Inter, sans-serif',
-          fontSize: '10px',
-          color: 'rgba(255,255,255,0.3)',
-          margin: '0 0 6px 0',
-          letterSpacing: '1.5px',
-          textTransform: 'uppercase',
-        }}>
-          {entry.host}
-        </p>
-        <p style={{
-          fontFamily: 'Bebas Neue, cursive',
-          fontSize: '22px',
-          color: '#fff',
-          margin: '0 0 2px 0',
-          letterSpacing: '1px',
-        }}>
-          {entry.champion}
-        </p>
-        <p style={{
-          fontFamily: 'Inter, sans-serif',
-          fontSize: '11px',
-          color: 'rgba(255,255,255,0.3)',
-          margin: '0 0 10px 0',
-        }}>
-          Final vs {entry.runner}
-        </p>
-        <p style={{
-          fontFamily: 'Inter, sans-serif',
-          fontSize: '11px',
-          color: 'rgba(201,162,39,0.5)',
-          margin: 0,
-          fontStyle: 'italic',
-          lineHeight: 1.4,
-        }}>
-          {entry.goals}
-        </p>
-      </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -319,12 +436,7 @@ function SectionHeader({ label, title, subtitle }) {
         {title}
       </h2>
       {subtitle && (
-        <p style={{
-          fontFamily: 'Inter, sans-serif',
-          fontSize: '14px',
-          color: 'rgba(255,255,255,0.35)',
-          margin: 0,
-        }}>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', color: 'rgba(255,255,255,0.35)', margin: 0 }}>
           {subtitle}
         </p>
       )}
@@ -338,6 +450,7 @@ export default function Home() {
   const prefersReduced = useReducedMotion()
   const [eventos, setEventos] = useState([])
   const [loadingEventos, setLoadingEventos] = useState(true)
+  const carouselRef = useRef(null)
 
   useEffect(() => {
     api.get('/eventos')
@@ -350,12 +463,16 @@ export default function Home() {
   const pastEventos = eventos
     .filter(e => new Date(e.fecha) < now)
     .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
-    .slice(0, 6)
 
   const upcomingEventos = eventos
     .filter(e => new Date(e.fecha) >= now)
     .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
     .slice(0, 3)
+
+  function scrollCarousel(dir) {
+    if (!carouselRef.current) return
+    carouselRef.current.scrollBy({ left: dir * 480, behavior: 'smooth' })
+  }
 
   const heroFade = prefersReduced
     ? {}
@@ -376,20 +493,6 @@ export default function Home() {
         <Spotlight />
 
         <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 'min(600px, 70vw)',
-          height: 'min(600px, 70vw)',
-          opacity: 0.06,
-          pointerEvents: 'none',
-          zIndex: 1,
-        }} aria-hidden="true">
-          <StadiumField animate />
-        </div>
-
-        <div style={{
           position: 'relative',
           zIndex: 2,
           width: '100%',
@@ -399,7 +502,6 @@ export default function Home() {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-start',
-          gap: '0',
         }}>
           <motion.div {...heroFade}>
             <p style={{
@@ -515,7 +617,6 @@ export default function Home() {
           </motion.div>
         </div>
 
-        {/* Scroll hint */}
         <motion.div
           animate={prefersReduced ? {} : { y: [0, 8, 0] }}
           transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
@@ -525,10 +626,6 @@ export default function Home() {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 2,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '6px',
           }}
         >
           <div style={{
@@ -539,44 +636,88 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* PAST RESULTS */}
-      <section style={{
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: '80px 40px',
-      }}>
-        <SectionHeader
-          label="Resultados"
-          title="Partidos Jugados"
-          subtitle={pastEventos.length > 0 ? `${pastEventos.length} encuentros finalizados` : undefined}
-        />
+      {/* PAST RESULTS CAROUSEL */}
+      {(loadingEventos || pastEventos.length > 0) && (
+        <section style={{
+          maxWidth: '1200px',
+          margin: '0 auto',
+          padding: '80px 40px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px', gap: '16px' }}>
+            <SectionHeader
+              label="Resultados"
+              title="Partidos Jugados"
+              subtitle={!loadingEventos ? `${pastEventos.length} encuentros finalizados` : undefined}
+            />
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '42px' }}>
+              <button
+                onClick={() => scrollCarousel(-1)}
+                aria-label="Anterior"
+                style={{
+                  width: '36px', height: '36px', borderRadius: '50%',
+                  background: 'rgba(201,162,39,0.1)',
+                  border: '1px solid rgba(201,162,39,0.3)',
+                  color: '#C9A227', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'background 0.14s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,162,39,0.2)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(201,162,39,0.1)' }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={() => scrollCarousel(1)}
+                aria-label="Siguiente"
+                style={{
+                  width: '36px', height: '36px', borderRadius: '50%',
+                  background: 'rgba(201,162,39,0.1)',
+                  border: '1px solid rgba(201,162,39,0.3)',
+                  color: '#C9A227', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'background 0.14s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,162,39,0.2)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(201,162,39,0.1)' }}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
 
-        {loadingEventos ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-            {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
-          </div>
-        ) : pastEventos.length === 0 ? (
-          <div style={{
-            padding: '48px 0',
-            textAlign: 'center',
-            color: 'rgba(255,255,255,0.2)',
-            fontFamily: 'Inter, sans-serif',
-            fontSize: '14px',
-          }}>
-            No hay partidos anteriores todavía.
-          </div>
-        ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: '14px',
-          }}>
-            {pastEventos.map((e, i) => (
-              <ResultCard key={e.id} evento={e} index={i} />
-            ))}
-          </div>
-        )}
-      </section>
+          {loadingEventos ? (
+            <div style={{ display: 'flex', gap: '12px', overflow: 'hidden' }}>
+              {[...Array(4)].map((_, i) => (
+                <div key={i} style={{
+                  minWidth: '220px', height: '130px',
+                  background: 'rgba(14,26,46,0.5)',
+                  border: '1px solid rgba(26,58,92,0.3)',
+                  borderRadius: '8px',
+                  animation: 'skeleton-pulse 1.5s ease-in-out infinite',
+                  animationDelay: `${i * 0.1}s`,
+                }} />
+              ))}
+            </div>
+          ) : (
+            <div
+              ref={carouselRef}
+              style={{
+                display: 'flex',
+                gap: '12px',
+                overflowX: 'auto',
+                scrollSnapType: 'x mandatory',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'rgba(201,162,39,0.3) transparent',
+                paddingBottom: '8px',
+              }}
+            >
+              {pastEventos.map(e => (
+                <ResultCard key={e.id} evento={e} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* UPCOMING MATCHES */}
       {!loadingEventos && upcomingEventos.length > 0 && (
@@ -585,16 +726,9 @@ export default function Home() {
           borderTop: '1px solid rgba(26,58,92,0.4)',
           borderBottom: '1px solid rgba(26,58,92,0.4)',
         }}>
-          <div style={{
-            maxWidth: '1200px',
-            margin: '0 auto',
-            padding: '80px 40px',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
-              <SectionHeader
-                label="Próximos"
-                title="Próximos Partidos"
-              />
+          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '80px 40px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0', flexWrap: 'wrap', gap: '16px' }}>
+              <SectionHeader label="Próximos" title="Próximos Partidos" />
               <button
                 onClick={() => navigate('/eventos')}
                 style={{
@@ -615,12 +749,7 @@ export default function Home() {
                 Ver todos <ChevronRight size={14} />
               </button>
             </div>
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-              gap: '14px',
-            }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '14px' }}>
               {upcomingEventos.map((e, i) => (
                 <UpcomingCard key={e.id} evento={e} index={i} onNavigate={navigate} />
               ))}
@@ -629,25 +758,31 @@ export default function Home() {
         </section>
       )}
 
-      {/* WORLD CUP HISTORY */}
-      <section style={{
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: '80px 40px',
-      }}>
-        <SectionHeader
-          label="Historia"
-          title="Mundiales Inolvidables"
-          subtitle="Ediciones que marcaron la historia del fútbol"
-        />
+      {/* WC HISTORY TIMELINE */}
+      <section style={{ padding: '80px 0' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 40px' }}>
+          <SectionHeader
+            label="Historia"
+            title="Mundiales Inolvidables"
+            subtitle="Las ediciones que escribieron la historia del fútbol"
+          />
+        </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-          gap: '16px',
-        }}>
+        <div style={{ position: 'relative', maxWidth: '1100px', margin: '0 auto', padding: '24px 40px 0' }}>
+          {/* Center connecting line */}
+          <div style={{
+            position: 'absolute',
+            left: '50%',
+            top: 0,
+            bottom: 0,
+            width: '1px',
+            background: 'linear-gradient(to bottom, transparent 0%, rgba(201,162,39,0.35) 5%, rgba(201,162,39,0.35) 95%, transparent 100%)',
+            transform: 'translateX(-50%)',
+            pointerEvents: 'none',
+          }} />
+
           {WC_HISTORY.map((entry, i) => (
-            <HistoryCard key={entry.year} entry={entry} index={i} />
+            <TimelineEntry key={entry.year} entry={entry} index={i} />
           ))}
         </div>
       </section>
@@ -718,7 +853,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* NAV BAR */}
+      {/* FIXED NAV */}
       <nav style={{
         position: 'fixed',
         top: 0,
@@ -735,17 +870,24 @@ export default function Home() {
         WebkitBackdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(201,162,39,0.1)',
       }}>
-        <span style={{
-          fontFamily: 'Bebas Neue, cursive',
-          fontSize: '20px',
-          color: '#C9A227',
-          letterSpacing: '3px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-        }}>
+        <button
+          onClick={() => navigate('/')}
+          style={{
+            fontFamily: 'Bebas Neue, cursive',
+            fontSize: '20px',
+            color: '#C9A227',
+            letterSpacing: '3px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+          }}
+        >
           <Trophy size={17} /> Mundial 2026
-        </span>
+        </button>
 
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
@@ -770,7 +912,7 @@ export default function Home() {
 
           {token ? (
             <button
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/mis-entradas')}
               style={{
                 fontFamily: 'Bebas Neue, cursive',
                 fontSize: '14px',
@@ -786,7 +928,7 @@ export default function Home() {
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,162,39,0.2)' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(201,162,39,0.12)' }}
             >
-              Mi Cuenta
+              Mis Entradas
             </button>
           ) : (
             <button

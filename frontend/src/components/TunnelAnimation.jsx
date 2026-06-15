@@ -23,7 +23,7 @@ export default function TunnelAnimation({ onComplete }) {
         if (from) navigate(from, { replace: true })
         else if (rol === 'ADMIN') navigate('/admin/dashboard')
         else if (rol === 'FUNCIONARIO') navigate('/funcionario/dashboard')
-        else navigate('/dashboard')
+        else navigate('/')
       }
     }, 2600)
     return () => clearTimeout(timer)

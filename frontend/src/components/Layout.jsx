@@ -58,10 +58,10 @@ export default function Layout({
               <ArrowLeft size={16} /> {backLabel}
             </Link>
           ) : (
-            <span style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '20px', color: '#C9A227', letterSpacing: '3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Link to="/" style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '20px', color: '#C9A227', letterSpacing: '3px', display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
               <Trophy size={18} />
               {brand}
-            </span>
+            </Link>
           )}
         </div>
 
