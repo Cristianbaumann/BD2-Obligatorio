@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 function decodeJWT(token) {
   try {
@@ -37,6 +37,7 @@ const useAuthStore = create(
     }),
     {
       name: 'mundial-auth',
+      storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({ token: state.token, user: state.user, rol: state.rol }),
     }
   )

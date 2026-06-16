@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import StadiumBowl from '../../components/admin/StadiumBowl'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
+import useAuthStore from '../../store/authStore'
 
 const USER_LINKS = [['Eventos', '/eventos'], ['Mis Entradas', '/mis-entradas'], ['Transferir', '/transferir']]
 
@@ -20,6 +21,7 @@ function availColor(disponibles, total) {
 export default function ComprarEntrada() {
   const { eventoId } = useParams()
   const navigate = useNavigate()
+  const { token } = useAuthStore()
   const [evento, setEvento] = useState(null)
   const [sectores, setSectores] = useState([])
   const [selecciones, setSelecciones] = useState({})
@@ -58,6 +60,10 @@ export default function ComprarEntrada() {
 
   async function handleCompra() {
     if (totalSelected === 0) return
+    if (!token) {
+      navigate('/login', { state: { from: { pathname: `/comprar/${eventoId}` } } })
+      return
+    }
     setLoading(true)
     try {
       await api.post('/ventas', {

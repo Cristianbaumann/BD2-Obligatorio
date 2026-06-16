@@ -38,6 +38,20 @@ function ProtectedRoute({ children, allowedRoles }) {
   return children
 }
 
+function RootRedirect() {
+  const { rol } = useAuthStore()
+  if (rol === 'ADMIN') return <Navigate to="/admin/dashboard" replace />
+  if (rol === 'FUNCIONARIO') return <Navigate to="/funcionario/dashboard" replace />
+  return <Home />
+}
+
+function SmartEventosRoute() {
+  const { rol } = useAuthStore()
+  if (rol === 'ADMIN') return <Navigate to="/admin/eventos" replace />
+  if (rol === 'FUNCIONARIO') return <Navigate to="/funcionario/dashboard" replace />
+  return <Eventos />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -52,7 +66,7 @@ export default function App() {
         }}
       />
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<RootRedirect />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
@@ -61,12 +75,8 @@ export default function App() {
             <UsuarioDashboard />
           </ProtectedRoute>
         } />
-        <Route path="/eventos" element={<Eventos />} />
-        <Route path="/comprar/:eventoId" element={
-          <ProtectedRoute allowedRoles={['USUARIO_FINAL']}>
-            <ComprarEntrada />
-          </ProtectedRoute>
-        } />
+        <Route path="/eventos" element={<SmartEventosRoute />} />
+        <Route path="/comprar/:eventoId" element={<ComprarEntrada />} />
         <Route path="/mis-entradas" element={
           <ProtectedRoute allowedRoles={['USUARIO_FINAL']}>
             <MisEntradas />

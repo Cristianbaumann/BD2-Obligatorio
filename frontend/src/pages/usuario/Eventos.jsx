@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { Building2 } from 'lucide-react'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
 import MatchCard from '../../components/MatchCard'
@@ -38,34 +37,49 @@ export default function Eventos() {
   }, [])
 
   function handleComprar(eventoId) {
-    if (!token) {
-      navigate('/login', { state: { from: { pathname: `/comprar/${eventoId}` } } })
-      return
-    }
     navigate(`/comprar/${eventoId}`)
   }
 
   return (
     <Layout links={token ? USER_LINKS : PUBLIC_LINKS}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '48px 24px' }}>
-        <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: '36px' }}>
-          <h1 className="gold-glow-text" style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '52px', color: '#C9A227', marginBottom: '4px' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '48px 40px 80px' }}>
+
+        <motion.div
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{ marginBottom: '40px' }}
+        >
+          <p style={{
+            fontFamily: 'Inter, sans-serif', fontSize: '11px', letterSpacing: '3px',
+            textTransform: 'uppercase', color: '#C9A227', margin: '0 0 6px 0', fontWeight: 600,
+          }}>
+            Agenda
+          </p>
+          <h1 style={{
+            fontFamily: 'Bebas Neue, cursive', fontSize: 'clamp(40px, 6vw, 64px)',
+            color: '#fff', margin: 0, lineHeight: 0.95, letterSpacing: '1px',
+          }}>
             Partidos Disponibles
           </h1>
-          <p style={{ color: 'rgba(255,255,255,0.4)' }}>
-            {eventos.length} partidos encontrados
-          </p>
+          {!loading && (
+            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '13px', marginTop: '8px', fontFamily: 'Inter, sans-serif' }}>
+              {eventos.length} {eventos.length === 1 ? 'partido' : 'partidos'}
+            </p>
+          )}
         </motion.div>
 
         {loading ? (
           <FootballLoader />
         ) : eventos.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '80px 0', color: 'rgba(255,255,255,0.3)' }}>
-            <Building2 size={48} color="rgba(255,255,255,0.2)" />
-            <p style={{ marginTop: '16px' }}>No hay eventos disponibles</p>
+          <div style={{ textAlign: 'center', padding: '80px 0', color: 'rgba(255,255,255,0.3)', fontFamily: 'Inter, sans-serif' }}>
+            No hay eventos disponibles
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+            gap: '20px',
+          }}>
             {eventos.map((e, i) => {
               const fecha = new Date(e.fecha)
               return (
@@ -74,8 +88,8 @@ export default function Eventos() {
                   index={i}
                   home={{ code: e.equipo_local.slice(0, 3).toUpperCase(), name: e.equipo_local }}
                   away={{ code: e.equipo_visitante.slice(0, 3).toUpperCase(), name: e.equipo_visitante }}
-                  date={fecha.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()}
-                  time={fecha.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  date={fecha.toLocaleDateString('es-UY', { day: 'numeric', month: 'short' }).toUpperCase()}
+                  time={fecha.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit', hour12: false })}
                   venue={e.estadio}
                   price={e.precio_minimo}
                   remaining={e.entradas_disponibles}

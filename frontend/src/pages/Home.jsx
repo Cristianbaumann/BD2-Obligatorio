@@ -1,11 +1,14 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, useReducedMotion } from 'framer-motion'
-import { Trophy, ChevronRight, ChevronLeft, Calendar, MapPin } from 'lucide-react'
+import { Trophy, ChevronRight } from 'lucide-react'
 import StadiumBackground from '../components/StadiumBackground'
 import Spotlight from '../components/ui/Spotlight'
+import Navbar from '../components/Navbar'
+import CircularGallery from '../components/CircularGallery'
 import api from '../services/api'
 import useAuthStore from '../store/authStore'
+import useEventosStore from '../store/eventosStore'
 
 const WC_HISTORY = [
   {
@@ -277,139 +280,7 @@ function TextOnly({ entry, align }) {
   )
 }
 
-function ResultCard({ evento }) {
-  const fecha = new Date(evento.fecha)
-  return (
-    <div style={{
-      minWidth: '220px',
-      maxWidth: '220px',
-      background: 'rgba(14,26,46,0.8)',
-      border: '1px solid rgba(26,58,92,0.5)',
-      borderRadius: '8px',
-      padding: '16px',
-      scrollSnapAlign: 'start',
-      flexShrink: 0,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '10px',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: '10px',
-          color: 'rgba(255,255,255,0.25)',
-        }}>
-          {fecha.toLocaleDateString('es-UY', { day: 'numeric', month: 'short' }).toUpperCase()}
-        </span>
-        <span style={{
-          fontSize: '9px',
-          fontWeight: 700,
-          letterSpacing: '1px',
-          color: 'rgba(255,255,255,0.3)',
-          background: 'rgba(255,255,255,0.05)',
-          padding: '2px 6px',
-          borderRadius: '3px',
-          textTransform: 'uppercase',
-        }}>
-          Finalizado
-        </span>
-      </div>
-      <div style={{ textAlign: 'center' }}>
-        <p style={{
-          fontFamily: 'Bebas Neue, cursive',
-          fontSize: '14px',
-          color: '#fff',
-          margin: '0 0 4px 0',
-          letterSpacing: '0.5px',
-          lineHeight: 1.2,
-        }}>
-          {evento.equipo_local}
-        </p>
-        <p style={{
-          fontFamily: 'Bebas Neue, cursive',
-          fontSize: '10px',
-          color: 'rgba(201,162,39,0.5)',
-          margin: '0 0 4px 0',
-          letterSpacing: '2px',
-        }}>
-          VS
-        </p>
-        <p style={{
-          fontFamily: 'Bebas Neue, cursive',
-          fontSize: '14px',
-          color: '#fff',
-          margin: 0,
-          letterSpacing: '0.5px',
-          lineHeight: 1.2,
-        }}>
-          {evento.equipo_visitante}
-        </p>
-      </div>
-      <p style={{
-        fontFamily: 'Inter, sans-serif',
-        fontSize: '10px',
-        color: 'rgba(255,255,255,0.2)',
-        margin: 0,
-        display: 'flex',
-        alignItems: 'center',
-        gap: '3px',
-        justifyContent: 'center',
-      }}>
-        <MapPin size={9} /> {evento.estadio}
-      </p>
-    </div>
-  )
-}
 
-function UpcomingCard({ evento, onNavigate }) {
-  const fecha = new Date(evento.fecha)
-  const [hovered, setHovered] = useState(false)
-
-  return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onClick={() => onNavigate('/eventos')}
-      style={{
-        background: hovered ? 'rgba(26,58,92,0.5)' : 'rgba(14,26,46,0.8)',
-        border: `1px solid ${hovered ? 'rgba(201,162,39,0.35)' : 'rgba(26,58,92,0.5)'}`,
-        borderRadius: '8px',
-        padding: '20px 22px',
-        cursor: 'pointer',
-        transition: 'all 0.18s',
-        transform: hovered ? 'translateY(-2px)' : 'none',
-        boxShadow: hovered ? '0 6px 24px rgba(201,162,39,0.1)' : 'none',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'rgba(255,255,255,0.35)', fontSize: '11px', fontFamily: 'JetBrains Mono, monospace' }}>
-          <Calendar size={11} />
-          {fecha.toLocaleDateString('es-UY', { day: 'numeric', month: 'short' }).toUpperCase()} · {fecha.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' })}
-        </div>
-        {evento.precio_minimo && (
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: '#C9A227', fontWeight: 600 }}>
-            desde ${evento.precio_minimo.toLocaleString()}
-          </span>
-        )}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '10px' }}>
-        <span style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '17px', color: '#fff', textAlign: 'right', letterSpacing: '0.5px' }}>
-          {evento.equipo_local}
-        </span>
-        <span style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '13px', color: 'rgba(201,162,39,0.6)', letterSpacing: '2px' }}>VS</span>
-        <span style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '17px', color: '#fff', letterSpacing: '0.5px' }}>
-          {evento.equipo_visitante}
-        </span>
-      </div>
-      <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: 'rgba(255,255,255,0.25)', margin: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
-        <MapPin size={10} /> {evento.estadio}
-      </p>
-    </div>
-  )
-}
 
 function SectionHeader({ label, title, subtitle }) {
   return (
@@ -450,28 +321,20 @@ export default function Home() {
   const prefersReduced = useReducedMotion()
   const [eventos, setEventos] = useState([])
   const [loadingEventos, setLoadingEventos] = useState(true)
-  const carouselRef = useRef(null)
+  const setEventosGlobal = useEventosStore(s => s.setEventos)
 
   useEffect(() => {
     api.get('/eventos')
-      .then(r => setEventos(r.data))
-      .catch(() => {})
+      .then(r => { setEventos(r.data); setEventosGlobal(r.data) })
+      .catch(err => console.error('eventos load failed:', err))
       .finally(() => setLoadingEventos(false))
   }, [])
 
-  const now = new Date()
-  const pastEventos = eventos
-    .filter(e => new Date(e.fecha) < now)
-    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+  const upcomingEventos = [...eventos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
 
-  const upcomingEventos = eventos
-    .filter(e => new Date(e.fecha) >= now)
-    .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
-    .slice(0, 3)
-
-  function scrollCarousel(dir) {
-    if (!carouselRef.current) return
-    carouselRef.current.scrollBy({ left: dir * 480, behavior: 'smooth' })
+  function handleBuy(eventoId) {
+    if (!token) navigate('/login', { state: { from: { pathname: `/comprar/${eventoId}` } } })
+    else navigate(`/comprar/${eventoId}`)
   }
 
   const heroFade = prefersReduced
@@ -480,6 +343,7 @@ export default function Home() {
 
   return (
     <div style={{ background: '#0A0A12', minHeight: '100vh' }}>
+      <Navbar links={token ? [['Eventos', '/eventos'], ['Mis Entradas', '/mis-entradas']] : [['Eventos', '/eventos']]} />
 
       {/* HERO */}
       <section style={{
@@ -636,127 +500,40 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* PAST RESULTS CAROUSEL */}
-      {(loadingEventos || pastEventos.length > 0) && (
-        <section style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          padding: '80px 40px',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px', gap: '16px' }}>
-            <SectionHeader
-              label="Resultados"
-              title="Partidos Jugados"
-              subtitle={!loadingEventos ? `${pastEventos.length} encuentros finalizados` : undefined}
-            />
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '42px' }}>
-              <button
-                onClick={() => scrollCarousel(-1)}
-                aria-label="Anterior"
-                style={{
-                  width: '36px', height: '36px', borderRadius: '50%',
-                  background: 'rgba(201,162,39,0.1)',
-                  border: '1px solid rgba(201,162,39,0.3)',
-                  color: '#C9A227', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'background 0.14s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,162,39,0.2)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(201,162,39,0.1)' }}
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <button
-                onClick={() => scrollCarousel(1)}
-                aria-label="Siguiente"
-                style={{
-                  width: '36px', height: '36px', borderRadius: '50%',
-                  background: 'rgba(201,162,39,0.1)',
-                  border: '1px solid rgba(201,162,39,0.3)',
-                  color: '#C9A227', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'background 0.14s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,162,39,0.2)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(201,162,39,0.1)' }}
-              >
-                <ChevronRight size={16} />
-              </button>
+      {/* 3D EVENTS GALLERY */}
+      <section style={{ padding: '80px 0 20px' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 40px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div>
+              <SectionHeader
+                label="Agenda"
+                title="Próximos Partidos"
+                subtitle={!loadingEventos ? `${upcomingEventos.length} partido${upcomingEventos.length !== 1 ? 's' : ''} disponible${upcomingEventos.length !== 1 ? 's' : ''}` : undefined}
+              />
             </div>
+            <button
+              onClick={() => navigate('/eventos')}
+              style={{
+                fontFamily: 'Bebas Neue, cursive', fontSize: '13px', letterSpacing: '1.5px',
+                color: '#C9A227', background: 'none', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '4px', padding: '0', marginBottom: '42px',
+              }}
+            >
+              Ver todos <ChevronRight size={12} />
+            </button>
           </div>
 
           {loadingEventos ? (
-            <div style={{ display: 'flex', gap: '12px', overflow: 'hidden' }}>
-              {[...Array(4)].map((_, i) => (
-                <div key={i} style={{
-                  minWidth: '220px', height: '130px',
-                  background: 'rgba(14,26,46,0.5)',
-                  border: '1px solid rgba(26,58,92,0.3)',
-                  borderRadius: '8px',
-                  animation: 'skeleton-pulse 1.5s ease-in-out infinite',
-                  animationDelay: `${i * 0.1}s`,
-                }} />
-              ))}
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
+              <div style={{
+                width: '48px', height: '48px', borderRadius: '50%',
+                border: '3px solid rgba(201,162,39,0.2)', borderTopColor: '#C9A227',
+                animation: 'football-spin 0.8s linear infinite',
+              }} />
             </div>
           ) : (
-            <div
-              ref={carouselRef}
-              style={{
-                display: 'flex',
-                gap: '12px',
-                overflowX: 'auto',
-                scrollSnapType: 'x mandatory',
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'rgba(201,162,39,0.3) transparent',
-                paddingBottom: '8px',
-              }}
-            >
-              {pastEventos.map(e => (
-                <ResultCard key={e.id} evento={e} />
-              ))}
-            </div>
+            <CircularGallery events={upcomingEventos} onSelect={handleBuy} />
           )}
         </section>
-      )}
-
-      {/* UPCOMING MATCHES */}
-      {!loadingEventos && upcomingEventos.length > 0 && (
-        <section style={{
-          background: 'rgba(10,10,18,0.8)',
-          borderTop: '1px solid rgba(26,58,92,0.4)',
-          borderBottom: '1px solid rgba(26,58,92,0.4)',
-        }}>
-          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '80px 40px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0', flexWrap: 'wrap', gap: '16px' }}>
-              <SectionHeader label="Próximos" title="Próximos Partidos" />
-              <button
-                onClick={() => navigate('/eventos')}
-                style={{
-                  fontFamily: 'Bebas Neue, cursive',
-                  fontSize: '14px',
-                  letterSpacing: '1.5px',
-                  color: '#C9A227',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '0',
-                  marginBottom: '42px',
-                }}
-              >
-                Ver todos <ChevronRight size={14} />
-              </button>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '14px' }}>
-              {upcomingEventos.map((e, i) => (
-                <UpcomingCard key={e.id} evento={e} index={i} onNavigate={navigate} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* WC HISTORY TIMELINE */}
       <section style={{ padding: '80px 0' }}>
@@ -853,106 +630,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* FIXED NAV */}
-      <nav style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 40px',
-        height: '64px',
-        background: 'rgba(10,10,18,0.7)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(201,162,39,0.1)',
-      }}>
-        <button
-          onClick={() => navigate('/')}
-          style={{
-            fontFamily: 'Bebas Neue, cursive',
-            fontSize: '20px',
-            color: '#C9A227',
-            letterSpacing: '3px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: 0,
-          }}
-        >
-          <Trophy size={17} /> Mundial 2026
-        </button>
-
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button
-            onClick={() => navigate('/eventos')}
-            style={{
-              fontFamily: 'Inter, sans-serif',
-              fontSize: '13px',
-              fontWeight: 500,
-              color: 'rgba(255,255,255,0.6)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '6px 12px',
-              borderRadius: '6px',
-              transition: 'color 0.14s, background 0.14s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; e.currentTarget.style.background = 'none' }}
-          >
-            Eventos
-          </button>
-
-          {token ? (
-            <button
-              onClick={() => navigate('/mis-entradas')}
-              style={{
-                fontFamily: 'Bebas Neue, cursive',
-                fontSize: '14px',
-                letterSpacing: '1.5px',
-                padding: '8px 20px',
-                background: 'rgba(201,162,39,0.12)',
-                color: '#C9A227',
-                border: '1px solid rgba(201,162,39,0.4)',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                transition: 'background 0.14s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,162,39,0.2)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(201,162,39,0.12)' }}
-            >
-              Mis Entradas
-            </button>
-          ) : (
-            <button
-              onClick={() => navigate('/login')}
-              style={{
-                fontFamily: 'Bebas Neue, cursive',
-                fontSize: '14px',
-                letterSpacing: '1.5px',
-                padding: '8px 20px',
-                background: '#C9A227',
-                color: '#0A0A12',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                transition: 'background 0.14s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#E4BC3A' }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#C9A227' }}
-            >
-              Ingresar
-            </button>
-          )}
-        </div>
-      </nav>
     </div>
   )
 }

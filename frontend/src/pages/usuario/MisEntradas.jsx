@@ -48,17 +48,22 @@ function TransferModal({ modal, onClose, onSuccess }) {
               zIndex: 200,
             }}
           />
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 201,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+          }}>
           <motion.div
             initial={{ opacity: 0, scale: 0.94, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 8 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 201,
+              pointerEvents: 'all',
               width: 'min(460px, calc(100vw - 32px))',
               background: 'rgba(10,16,30,0.98)',
               border: '1px solid rgba(201,162,39,0.25)',
@@ -220,6 +225,7 @@ function TransferModal({ modal, onClose, onSuccess }) {
               </div>
             </form>
           </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>
