@@ -17,7 +17,7 @@ function TransferModal({ modal, onClose, onSuccess }) {
     e.preventDefault()
     if (!email.trim()) return
     setSending(true)
-    api.post('/transferencias', { entrada_id: modal.entradaId, mail_destino: email.trim() })
+    api.post('/transferencias/', { entrada_id: modal.entradaId, destino_mail: email.trim() })
       .then(() => {
         toast.success('Entrada transferida correctamente')
         onSuccess()
