@@ -27,6 +27,7 @@ def mis_entradas(
                   el.nombre              AS equipo_local_nombre,
                   ev2.nombre             AS equipo_visitante_nombre,
                   s.nombre               AS sector_nombre,
+                  est.nombre             AS estadio_nombre,
                   q.id                   AS qr_id,
                   q.codigo_hash          AS qr_codigo_hash,
                   q.creado_en            AS qr_creado_en,
@@ -36,6 +37,10 @@ def mis_entradas(
            JOIN Equipo   el  ON el.id  = ev.equipo_local_id
            JOIN Equipo   ev2 ON ev2.id = ev.equipo_visitante_id
            JOIN Sector   s   ON s.id   = e.sector_id
+           JOIN Estadio  est ON est.dir_pais      = ev.estadio_pais
+                             AND est.dir_localidad = ev.estadio_localidad
+                             AND est.dir_calle     = ev.estadio_calle
+                             AND est.dir_numero    = ev.estadio_numero
            LEFT JOIN Qr  q   ON q.entrada_id = e.id AND q.activo = TRUE
            WHERE e.titular_mail = %s
            ORDER BY ev.fecha DESC, e.id""",
@@ -57,6 +62,7 @@ def mis_entradas(
                 equipo_local=r["equipo_local_nombre"],
                 equipo_visitante=r["equipo_visitante_nombre"],
                 sector_nombre=r["sector_nombre"],
+                estadio_nombre=r["estadio_nombre"],
             ),
             qr=QrInfo(
                 id=r["qr_id"],
@@ -67,6 +73,41 @@ def mis_entradas(
         )
         for r in rows
     ]
+
+
+@router.get(
+    "/{id}/qr",
+    response_model=QrInfo,
+    summary="QR activo de una entrada",
+)
+def get_qr_entrada(
+    id: str,
+    db=Depends(get_db),
+    user=Depends(get_current_user),
+):
+    db.execute("SELECT titular_mail, consumido FROM Entrada WHERE id = %s", (id,))
+    entrada = db.fetchone()
+    if not entrada:
+        raise HTTPException(status_code=404, detail="Entrada no encontrada")
+    if entrada["titular_mail"] != user["mail"] and user.get("rol") != "ADMIN":
+        raise HTTPException(status_code=403, detail="No autorizado")
+    if entrada["consumido"]:
+        raise HTTPException(status_code=409, detail="Entrada ya consumida")
+
+    db.execute(
+        "SELECT id, codigo_hash, creado_en, activo FROM Qr WHERE entrada_id = %s AND activo = TRUE LIMIT 1",
+        (id,),
+    )
+    qr = db.fetchone()
+    if not qr:
+        raise HTTPException(status_code=404, detail="No hay QR activo para esta entrada")
+
+    return QrInfo(
+        id=qr["id"],
+        codigo_hash=qr["codigo_hash"],
+        creado_en=qr["creado_en"],
+        activo=bool(qr["activo"]),
+    )
 
 
 @router.get(

@@ -2,6 +2,15 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 
+class EstadioUpdate(BaseModel):
+    nombre: Optional[str] = None
+    aforo: Optional[int] = None
+    dir_pais: Optional[str] = None
+    dir_localidad: Optional[str] = None
+    dir_calle: Optional[str] = None
+    dir_numero: Optional[str] = None
+
+
 class EstadioCreate(BaseModel):
     dir_pais: str
     dir_localidad: str

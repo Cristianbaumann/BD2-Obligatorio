@@ -4,7 +4,7 @@ import traceback
 
 from dependencies.auth import require_admin
 from database import get_db
-from schemas.evento import EventoCreate, EventoOut, EventoSectorItem, EventoSectorOut
+from schemas.evento import EventoCreate, EventoOut, EventoSectorItem, EventoSectorOut, EventoRichOut, SectorDisponibilidadOut
 
 router = APIRouter(prefix="/eventos", tags=["eventos"])
 
@@ -25,33 +25,40 @@ def _get_admin_pais_sede(db, mail: str) -> str:
 
 
 
-@router.get("/")
+@router.get("/", response_model=list[EventoRichOut])
 def list_eventos(db=Depends(get_db)):
-    print("ENTRE A list_eventos")
-    try:
-        query = """
-            SELECT id, fecha, equipo_local_id, equipo_visitante_id,
-                   estadio_pais, estadio_localidad,
-                   estadio_calle, estadio_numero
-            FROM Evento
-            ORDER BY fecha
+    db.execute(
         """
-
-        print("Ejecutando consulta...")
-        db.execute(query)
-
-        result = db.fetchall()
-
-        print("Resultado obtenido:")
-        print(result)
-
-        return result
-
-    except Exception as e:
-        print("ERROR EN list_eventos:")
-        print(type(e).__name__)
-        print(str(e))
-        raise
+        SELECT
+            e.id,
+            e.fecha,
+            eq_local.nombre  AS equipo_local,
+            eq_visit.nombre  AS equipo_visitante,
+            est.nombre       AS estadio,
+            (SELECT MIN(es2.costo)
+               FROM EventoSector es2
+              WHERE es2.evento_id = e.id)                              AS precio_minimo,
+            (SELECT SUM(s2.capacidad)
+               FROM EventoSector es2
+               JOIN Sector s2 ON s2.id = es2.sector_id
+              WHERE es2.evento_id = e.id)                              AS capacidad,
+            (SELECT SUM(s2.capacidad)
+               FROM EventoSector es2
+               JOIN Sector s2 ON s2.id = es2.sector_id
+              WHERE es2.evento_id = e.id)
+            - (SELECT COUNT(*) FROM Entrada ent2
+               WHERE ent2.evento_id = e.id)                            AS entradas_disponibles
+        FROM Evento e
+        JOIN Equipo  eq_local ON eq_local.id = e.equipo_local_id
+        JOIN Equipo  eq_visit ON eq_visit.id = e.equipo_visitante_id
+        JOIN Estadio est      ON est.dir_pais      = e.estadio_pais
+                             AND est.dir_localidad = e.estadio_localidad
+                             AND est.dir_calle     = e.estadio_calle
+                             AND est.dir_numero    = e.estadio_numero
+        ORDER BY e.fecha
+        """
+    )
+    return db.fetchall()
 
 
 @router.post(
@@ -123,23 +130,81 @@ def create_evento(
             evento.estadio_numero,
         ),
     )
-    return db.fetchone()
+    nuevo_evento = db.fetchone()
+
+    if evento.sectores:
+        for s in evento.sectores:
+            db.execute(
+                "INSERT INTO EventoSector (evento_id, sector_id, costo) VALUES (%s, %s, %s)",
+                (nuevo_evento["id"], s.sector_id, s.costo),
+            )
+
+    return nuevo_evento
+
+
+@router.get(
+    "/{id}/disponibilidad",
+    response_model=list[SectorDisponibilidadOut],
+    summary="Disponibilidad de sectores para un evento",
+    description="Retorna cada sector habilitado con su capacidad total y entradas disponibles.",
+)
+def get_evento_disponibilidad(id: str, db=Depends(get_db)):
+    db.execute(
+        """
+        SELECT
+            es.sector_id,
+            s.nombre,
+            es.costo,
+            s.capacidad                  AS total,
+            s.capacidad - COUNT(ent.id)  AS disponibles
+        FROM EventoSector es
+        JOIN Sector s ON s.id = es.sector_id
+        LEFT JOIN Entrada ent ON ent.evento_id = es.evento_id
+                              AND ent.sector_id  = es.sector_id
+        WHERE es.evento_id = %s
+        GROUP BY es.sector_id, s.nombre, es.costo, s.capacidad
+        """,
+        (id,),
+    )
+    return db.fetchall()
 
 
 @router.get(
     "/{id}",
-    response_model=EventoOut,
+    response_model=EventoRichOut,
     summary="Obtener evento por ID",
     description="Obtiene los detalles de un evento específico por su ID.",
 )
 def get_evento(id: str, db=Depends(get_db)):
-    """Obtener los detalles de un evento específico."""
     db.execute(
         """
-        SELECT id, fecha, equipo_local_id, equipo_visitante_id,
-        estadio_pais, estadio_localidad, estadio_calle, estadio_numero
-        FROM Evento
-        WHERE id = %s
+        SELECT
+            e.id,
+            e.fecha,
+            eq_local.nombre  AS equipo_local,
+            eq_visit.nombre  AS equipo_visitante,
+            est.nombre       AS estadio,
+            (SELECT MIN(es2.costo)
+               FROM EventoSector es2
+              WHERE es2.evento_id = e.id)                              AS precio_minimo,
+            (SELECT SUM(s2.capacidad)
+               FROM EventoSector es2
+               JOIN Sector s2 ON s2.id = es2.sector_id
+              WHERE es2.evento_id = e.id)                              AS capacidad,
+            (SELECT SUM(s2.capacidad)
+               FROM EventoSector es2
+               JOIN Sector s2 ON s2.id = es2.sector_id
+              WHERE es2.evento_id = e.id)
+            - (SELECT COUNT(*) FROM Entrada ent2
+               WHERE ent2.evento_id = e.id)                            AS entradas_disponibles
+        FROM Evento e
+        JOIN Equipo  eq_local ON eq_local.id = e.equipo_local_id
+        JOIN Equipo  eq_visit ON eq_visit.id = e.equipo_visitante_id
+        JOIN Estadio est      ON est.dir_pais      = e.estadio_pais
+                             AND est.dir_localidad = e.estadio_localidad
+                             AND est.dir_calle     = e.estadio_calle
+                             AND est.dir_numero    = e.estadio_numero
+        WHERE e.id = %s
         """,
         (id,),
     )
@@ -211,6 +276,14 @@ def update_evento(
             status_code=409,
             detail="Ya existe un evento en ese estadio para esa fecha y hora",
         ) from exc
+
+    if evento.sectores is not None:
+        db.execute("DELETE FROM EventoSector WHERE evento_id = %s", (id,))
+        for s in evento.sectores:
+            db.execute(
+                "INSERT INTO EventoSector (evento_id, sector_id, costo) VALUES (%s, %s, %s)",
+                (id, s.sector_id, s.costo),
+            )
 
     db.execute(
         """

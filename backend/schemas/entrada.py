@@ -15,6 +15,7 @@ class EventoInfo(BaseModel):
     equipo_local: str
     equipo_visitante: str
     sector_nombre: str
+    estadio_nombre: Optional[str] = None
 
 
 class EntradaConInfoOut(BaseModel):

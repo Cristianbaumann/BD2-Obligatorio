@@ -119,7 +119,7 @@ CREATE TABLE Sector (
     CONSTRAINT fk_sector_estadio FOREIGN KEY
         (estadio_pais, estadio_localidad, estadio_calle, estadio_numero)
         REFERENCES Estadio(dir_pais, dir_localidad, dir_calle, dir_numero)
-        ON DELETE CASCADE
+        ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 
@@ -153,7 +153,8 @@ CREATE TABLE Evento (
         REFERENCES Equipo(id),
     CONSTRAINT fk_evento_estadio   FOREIGN KEY
         (estadio_pais, estadio_localidad, estadio_calle, estadio_numero)
-        REFERENCES Estadio(dir_pais, dir_localidad, dir_calle, dir_numero),
+        REFERENCES Estadio(dir_pais, dir_localidad, dir_calle, dir_numero)
+        ON UPDATE CASCADE,
     UNIQUE KEY uq_estadio_fecha
         (estadio_pais, estadio_localidad, estadio_calle, estadio_numero, fecha)
 ) ENGINE=InnoDB;

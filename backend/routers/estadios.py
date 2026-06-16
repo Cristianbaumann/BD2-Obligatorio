@@ -5,7 +5,7 @@ from mysql.connector import IntegrityError
 
 from database import get_db
 from dependencies.auth import require_admin
-from schemas.estadio import EstadioCreate, EstadioDetail, EstadioOut, SectorIn, SectorOut, SectorUpdate
+from schemas.estadio import EstadioCreate, EstadioDetail, EstadioOut, EstadioUpdate, SectorIn, SectorOut, SectorUpdate
 
 router = APIRouter(prefix="/estadios", tags=["estadios"])
 
@@ -234,6 +234,123 @@ def update_sector(
     cursor.execute(
         "SELECT id, estadio_pais, estadio_localidad, estadio_calle, estadio_numero, nombre, capacidad FROM Sector WHERE id = %s",
         (sector_id,),
+    )
+    return cursor.fetchone()
+
+
+@router.delete("/{nombre}/sectores/{sector_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_sector(
+    nombre: str,
+    sector_id: int,
+    cursor=Depends(get_db),
+    admin=Depends(require_admin),
+):
+    cursor.execute("SELECT pais_sede FROM Admin WHERE usuario_mail = %s", (admin["mail"],))
+    admin_row = cursor.fetchone()
+    if not admin_row:
+        raise HTTPException(status_code=403, detail="El usuario no tiene perfil de administrador")
+
+    cursor.execute(
+        "SELECT dir_pais, dir_localidad, dir_calle, dir_numero FROM Estadio WHERE nombre = %s",
+        (nombre,),
+    )
+    estadio = cursor.fetchone()
+    if not estadio:
+        raise HTTPException(status_code=404, detail="Estadio no encontrado")
+
+    if _norm(admin_row["pais_sede"]) != _norm(estadio["dir_pais"]):
+        raise HTTPException(status_code=403, detail="El admin solo puede gestionar estadios de su país sede")
+
+    cursor.execute(
+        """
+        SELECT id FROM Sector
+        WHERE id = %s AND estadio_pais = %s AND estadio_localidad = %s
+          AND estadio_calle = %s AND estadio_numero = %s
+        """,
+        (sector_id, estadio["dir_pais"], estadio["dir_localidad"],
+         estadio["dir_calle"], estadio["dir_numero"]),
+    )
+    if not cursor.fetchone():
+        raise HTTPException(status_code=404, detail="Sector no encontrado en ese estadio")
+
+    cursor.execute(
+        "SELECT COUNT(*) AS cnt FROM Entrada WHERE sector_id = %s",
+        (sector_id,),
+    )
+    if cursor.fetchone()["cnt"] > 0:
+        raise HTTPException(
+            status_code=409,
+            detail="No se puede eliminar: hay entradas emitidas para este sector",
+        )
+
+    cursor.execute("DELETE FROM Sector WHERE id = %s", (sector_id,))
+
+
+@router.put("/{nombre}", response_model=EstadioOut)
+def update_estadio(
+    nombre: str,
+    datos: EstadioUpdate,
+    cursor=Depends(get_db),
+    admin=Depends(require_admin),
+):
+    cursor.execute("SELECT pais_sede FROM Admin WHERE usuario_mail = %s", (admin["mail"],))
+    admin_row = cursor.fetchone()
+    if not admin_row:
+        raise HTTPException(status_code=403, detail="El usuario no tiene perfil de administrador")
+
+    cursor.execute(
+        "SELECT dir_pais, dir_localidad, dir_calle, dir_numero, nombre, aforo FROM Estadio WHERE nombre = %s",
+        (nombre,),
+    )
+    estadio = cursor.fetchone()
+    if not estadio:
+        raise HTTPException(status_code=404, detail="Estadio no encontrado")
+
+    if _norm(admin_row["pais_sede"]) != _norm(estadio["dir_pais"]):
+        raise HTTPException(status_code=403, detail="El admin solo puede gestionar estadios de su país sede")
+
+    new_aforo = datos.aforo if datos.aforo is not None else estadio["aforo"]
+    cursor.execute(
+        """
+        SELECT COALESCE(SUM(capacidad), 0) AS total
+        FROM Sector
+        WHERE estadio_pais = %s AND estadio_localidad = %s
+          AND estadio_calle = %s AND estadio_numero = %s
+        """,
+        (estadio["dir_pais"], estadio["dir_localidad"], estadio["dir_calle"], estadio["dir_numero"]),
+    )
+    total_sectores = cursor.fetchone()["total"]
+    if new_aforo < total_sectores:
+        raise HTTPException(
+            status_code=409,
+            detail=f"El aforo ({new_aforo}) no puede ser menor que la capacidad total de sectores ({total_sectores})",
+        )
+
+    new_pais      = datos.dir_pais      if datos.dir_pais      is not None else estadio["dir_pais"]
+    new_localidad = datos.dir_localidad if datos.dir_localidad is not None else estadio["dir_localidad"]
+    new_calle     = datos.dir_calle     if datos.dir_calle     is not None else estadio["dir_calle"]
+    new_numero    = datos.dir_numero    if datos.dir_numero    is not None else estadio["dir_numero"]
+    new_nombre    = datos.nombre        if datos.nombre        is not None else estadio["nombre"]
+
+    try:
+        cursor.execute(
+            """
+            UPDATE Estadio
+            SET dir_pais = %s, dir_localidad = %s, dir_calle = %s, dir_numero = %s,
+                nombre = %s, aforo = %s
+            WHERE dir_pais = %s AND dir_localidad = %s AND dir_calle = %s AND dir_numero = %s
+            """,
+            (
+                new_pais, new_localidad, new_calle, new_numero, new_nombre, new_aforo,
+                estadio["dir_pais"], estadio["dir_localidad"], estadio["dir_calle"], estadio["dir_numero"],
+            ),
+        )
+    except IntegrityError as exc:
+        raise HTTPException(status_code=409, detail="Conflicto al actualizar: dirección duplicada") from exc
+
+    cursor.execute(
+        "SELECT dir_pais, dir_localidad, dir_calle, dir_numero, nombre, aforo FROM Estadio WHERE nombre = %s",
+        (new_nombre,),
     )
     return cursor.fetchone()
 

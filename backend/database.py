@@ -14,7 +14,7 @@ def get_connection():
 
 def get_db():
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(dictionary=True, buffered=True)
     try:
         yield cursor
         conn.commit()
