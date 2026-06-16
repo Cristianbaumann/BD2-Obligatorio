@@ -60,7 +60,6 @@ def create_transferencia(body: TransferenciaIn, user=Depends(get_current_user), 
     # Invalidate old QR so recipient gets a fresh one
     db.execute("UPDATE Qr SET activo = FALSE WHERE entrada_id = %s", (entrada_id,))
 
-    db.commit()
     return {"message": "Entrada transferida exitosamente"}
 
 
@@ -128,8 +127,6 @@ def solicitar_transferencia(entrada_id: int, email_destinatario: str, user=Depen
     VALUES (%s, %s, %s, NOW(), 'PENDIENTE')
     """
     db.execute(query_insert, (entrada_id, user["mail"], email_destinatario))
-    db.commit()
-
     return {"message": "Transferencia solicitada exitosamente"}
 
 
@@ -144,8 +141,6 @@ def rechazar_transferencia(id: str, user=Depends(require_any_role), db=Depends(g
     db.execute(query, (id,))
     if db.rowcount == 0:
         raise HTTPException(status_code=404, detail="Transferencia no encontrada o no está pendiente")
-    
-    db.commit()
     return {"message": "Transferencia rechazada exitosamente"}
 
 
@@ -160,6 +155,4 @@ def aceptar_transferencia(id: str, user=Depends(require_any_role), db=Depends(ge
     db.execute(query, (id,))
     if db.rowcount == 0:
         raise HTTPException(status_code=404, detail="Transferencia no encontrada o no está pendiente")
-    
-    db.commit()
     return {"message": "Transferencia aceptada exitosamente"}

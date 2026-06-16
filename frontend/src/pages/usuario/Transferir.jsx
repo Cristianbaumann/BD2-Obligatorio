@@ -33,7 +33,7 @@ export default function Transferir() {
     if (!form.entrada_id || !form.mail_destino) return
     setLoading(true)
     try {
-      await api.post('/transferencias', {
+      await api.post('/transferencias/', {
         entrada_id: form.entrada_id,
         mail_destino: form.mail_destino,
       })
