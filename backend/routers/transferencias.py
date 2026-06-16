@@ -1,14 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, EmailStr
 from dependencies.auth import require_any_role, get_current_user
+from schemas.transferencia import TransferenciaCreate
 from database import get_db
 
 router = APIRouter(prefix="/transferencias", tags=["transferencias"])
-
-
-class TransferenciaIn(BaseModel):
-    entrada_id: str
-    mail_destino: EmailStr
 
 
 @router.get("/")
@@ -17,9 +12,9 @@ def list_transferencias():
 
 
 @router.post("/")
-def create_transferencia(body: TransferenciaIn, user=Depends(get_current_user), db=Depends(get_db)):
+def create_transferencia(body: TransferenciaCreate, user=Depends(get_current_user), db=Depends(get_db)):
     entrada_id = body.entrada_id
-    mail_destino = body.mail_destino
+    mail_destino = body.destino_mail
 
     # Verify recipient exists in Usuario
     db.execute("SELECT mail FROM Usuario WHERE mail = %s", (mail_destino,))

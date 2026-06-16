@@ -35,7 +35,7 @@ export default function Transferir() {
     try {
       await api.post('/transferencias/', {
         entrada_id: form.entrada_id,
-        mail_destino: form.mail_destino,
+        destino_mail: form.mail_destino,
       })
       toast.success(`Entrada transferida a ${form.mail_destino}`)
       setForm({ entrada_id: '', mail_destino: '' })
