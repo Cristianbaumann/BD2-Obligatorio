@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import useAuthStore from './store/authStore'
+import ScrollToTop from './components/ScrollToTop'
 
 import Home from './pages/Home'
 import Login from './pages/Login'
@@ -55,6 +56,7 @@ function SmartEventosRoute() {
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Toaster
         position="top-right"
         toastOptions={{
