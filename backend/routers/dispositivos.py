@@ -1,21 +1,75 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, status
+from mysql.connector import IntegrityError
+from dependencies.auth import require_admin
+from database import get_db
+from schemas.dispositivo import DispositivoCreate, DispositivoOut
 
 router = APIRouter(prefix="/dispositivos", tags=["dispositivos"])
 
 
-@router.get("/")
-def list_dispositivos():
-    # TODO: list all dispositivos
-    pass
+@router.get("/", response_model=list[DispositivoOut])
+def list_dispositivos(db=Depends(get_db), user=Depends(require_admin)):
+    db.execute("SELECT id, funcionario_mail, activo FROM Dispositivo")
+    return db.fetchall()
 
 
-@router.post("/")
-def create_dispositivo():
-    # TODO: register dispositivo
-    pass
+@router.post("/", response_model=DispositivoOut, status_code=status.HTTP_201_CREATED)
+def create_dispositivo(
+    body: DispositivoCreate,           
+    db=Depends(get_db),
+    user=Depends(require_admin)
+):
+    # Verificar que el funcionario existe
+    db.execute(
+        "SELECT usuario_mail FROM Funcionario WHERE usuario_mail = %s",
+        (body.funcionario_mail,)
+    )
+    if db.fetchone() is None:
+        raise HTTPException(status_code=404, detail="Funcionario no encontrado")
+
+    try:
+        db.execute(
+            "INSERT INTO Dispositivo (id, funcionario_mail, activo) VALUES (UUID(), %s, TRUE)",
+            (body.funcionario_mail,)
+        )
+        db.commit()
+    except IntegrityError:              
+        raise HTTPException(status_code=409, detail="El dispositivo ya está registrado")
+
+    db.execute(
+        "SELECT id, funcionario_mail, activo FROM Dispositivo WHERE funcionario_mail = %s ORDER BY rowid DESC LIMIT 1",
+        (body.funcionario_mail,)
+    )
+    return db.fetchone()
 
 
-@router.delete("/{id}")
-def delete_dispositivo(id: int):
-    # TODO: delete dispositivo
-    pass
+@router.delete("/{id}", status_code=status.HTTP_200_OK)
+def delete_dispositivo(
+    id: str,                           
+    db=Depends(get_db),
+    user=Depends(require_admin)
+):
+    db.execute("SELECT id FROM Dispositivo WHERE id = %s", (id,))
+    if db.fetchone() is None:
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+
+    db.execute("DELETE FROM Dispositivo WHERE id = %s", (id,))
+    db.commit()
+    return {"detail": "Dispositivo eliminado"}
+
+
+@router.get("/autorizados", response_model=list[DispositivoOut])  # ← ruta simplificada
+def list_dispositivos_autorizados(db=Depends(get_db), user=Depends(require_admin)):
+    db.execute(
+        """
+        SELECT id, funcionario_mail, activo
+        FROM Dispositivo
+        WHERE activo = TRUE              
+        """
+    )
+    dispositivos = db.fetchall()
+
+    if not dispositivos:
+        raise HTTPException(status_code=404, detail="No hay dispositivos autorizados")
+
+    return dispositivos
