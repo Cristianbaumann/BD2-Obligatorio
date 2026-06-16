@@ -2,14 +2,12 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
 } from 'recharts'
-import { DollarSign, Ticket, Calendar, TrendingUp } from 'lucide-react'
+import { DollarSign, Ticket, Users, Trophy } from 'lucide-react'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
 
 const ADMIN_LINKS = [['Eventos', '/admin/eventos'], ['Estadios', '/admin/estadios'], ['Funcionarios', '/admin/funcionarios']]
-const PIE_COLORS = ['#C9A227', '#1A3A5C', '#22c55e', '#E63946', '#8b5cf6', '#f97316']
 
 const TOOLTIP_STYLE = {
   background: '#0E1A2E',
@@ -45,27 +43,34 @@ function KPICard({ icon, label, value, sub, index }) {
 }
 
 export default function AdminDashboard() {
-  const [reportes, setReportes] = useState(null)
-  const [ocupacion, setOcupacion] = useState([])
+  const [masVendidos, setMasVendidos] = useState([])
+  const [compradores, setCompradores] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     Promise.all([
-      api.get('/reportes/ventas').catch(() => ({ data: null })),
-      api.get('/reportes/ocupacion').catch(() => ({ data: [] })),
-    ]).then(([v, o]) => {
-      setReportes(v.data)
-      setOcupacion(Array.isArray(o.data) ? o.data : [])
+      api.get('/reportes/mas-vendidos').catch(() => ({ data: [] })),
+      api.get('/reportes/mayores-compradores').catch(() => ({ data: [] })),
+    ]).then(([mv, c]) => {
+      setMasVendidos(Array.isArray(mv.data) ? mv.data : [])
+      setCompradores(Array.isArray(c.data) ? c.data : [])
     }).finally(() => setLoading(false))
   }, [])
 
-  const ventas = reportes?.por_evento || []
+  const totalVendidas = masVendidos.reduce((s, e) => s + (e.total_entradas_vendidas || 0), 0)
+  const totalGastado  = compradores.reduce((s, c) => s + (c.total_gastado || 0), 0)
+
   const kpis = [
-    { icon: <DollarSign size={18} />, label: 'Total Recaudado',    value: `$${(reportes?.total_recaudado ?? 0).toLocaleString()}`,  sub: 'en ventas' },
-    { icon: <Ticket size={18} />,     label: 'Entradas Vendidas',  value: (reportes?.total_vendidas ?? 0).toLocaleString(),          sub: 'tickets' },
-    { icon: <Calendar size={18} />,   label: 'Eventos Activos',    value: (reportes?.eventos_activos ?? 0).toString(),               sub: 'partidos' },
-    { icon: <TrendingUp size={18} />, label: 'Comisión Acumulada', value: `$${(reportes?.comision_total ?? 0).toLocaleString()}`,    sub: '10% sobre ventas' },
+    { icon: <Ticket size={18} />,   label: 'Entradas Vendidas',    value: totalVendidas.toLocaleString(),                          sub: 'top eventos' },
+    { icon: <DollarSign size={18} />, label: 'Total Recaudado',    value: `$${totalGastado.toLocaleString('es-UY', { minimumFractionDigits: 0 })}`, sub: 'top compradores' },
+    { icon: <Trophy size={18} />,   label: 'Eventos con ventas',   value: masVendidos.length.toString(),                           sub: 'en ranking' },
+    { icon: <Users size={18} />,    label: 'Compradores activos',  value: compradores.length.toString(),                           sub: 'en ranking' },
   ]
+
+  const barData = masVendidos.map(e => ({
+    partido: `${e.equipo_local} vs ${e.equipo_visitante}`,
+    vendidas: e.total_entradas_vendidas,
+  }))
 
   return (
     <Layout brand="ADMIN" links={ADMIN_LINKS}>
@@ -82,56 +87,87 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <>
+            {/* KPI cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '32px' }}>
               {kpis.map((k, i) => <KPICard key={k.label} {...k} index={i} />)}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
+
+              {/* Eventos más vendidos — bar chart */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
                 className="glass-card"
                 style={{ padding: '24px' }}
               >
                 <h3 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '20px', color: '#fff', marginBottom: '20px', letterSpacing: '1px' }}>
-                  Ventas por Evento
+                  Eventos Más Vendidos
                 </h3>
-                {ventas.length === 0 ? (
+                {barData.length === 0 ? (
                   <p style={{ color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '40px 0' }}>Sin datos</p>
                 ) : (
                   <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={ventas} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                    <BarChart data={barData} margin={{ top: 0, right: 0, bottom: 40, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                      <XAxis dataKey="evento" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
-                      <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
-                      <Tooltip contentStyle={TOOLTIP_STYLE} />
+                      <XAxis
+                        dataKey="partido"
+                        tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
+                        angle={-30}
+                        textAnchor="end"
+                        interval={0}
+                      />
+                      <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} allowDecimals={false} />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [v, 'Entradas']} />
                       <Bar dataKey="vendidas" fill="#C9A227" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
               </motion.div>
 
+              {/* Mayores compradores — tabla */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
                 className="glass-card"
                 style={{ padding: '24px' }}
               >
                 <h3 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '20px', color: '#fff', marginBottom: '20px', letterSpacing: '1px' }}>
-                  Ocupación por Sector
+                  Mayores Compradores
                 </h3>
-                {ocupacion.length === 0 ? (
+                {compradores.length === 0 ? (
                   <p style={{ color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '40px 0' }}>Sin datos</p>
                 ) : (
-                  <ResponsiveContainer width="100%" height={240}>
-                    <PieChart>
-                      <Pie data={ocupacion} dataKey="ocupadas" nameKey="sector" cx="50%" cy="50%" outerRadius={90} label>
-                        {ocupacion.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                      </Pie>
-                      <Legend wrapperStyle={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }} />
-                      <Tooltip contentStyle={TOOLTIP_STYLE} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+                    {/* header */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '12px', padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', letterSpacing: '1px', textTransform: 'uppercase' }}>Email</span>
+                      <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', letterSpacing: '1px', textTransform: 'uppercase', textAlign: 'right' }}>Entradas</span>
+                      <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', letterSpacing: '1px', textTransform: 'uppercase', textAlign: 'right' }}>Gastado</span>
+                    </div>
+                    {compradores.map((c, i) => (
+                      <div
+                        key={c.mail}
+                        style={{
+                          display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '12px',
+                          padding: '10px 12px',
+                          borderBottom: '1px solid rgba(255,255,255,0.04)',
+                          background: i === 0 ? 'rgba(201,162,39,0.04)' : 'none',
+                        }}
+                      >
+                        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: i === 0 ? '#C9A227' : 'rgba(255,255,255,0.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {i === 0 && '🥇 '}{c.mail}
+                        </span>
+                        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: 'rgba(255,255,255,0.5)', textAlign: 'right' }}>
+                          {c.total_entradas_compradas}
+                        </span>
+                        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: '#C9A227', textAlign: 'right' }}>
+                          ${Number(c.total_gastado).toLocaleString('es-UY', { minimumFractionDigits: 0 })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </motion.div>
+
             </div>
           </>
         )}

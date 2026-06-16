@@ -93,51 +93,89 @@ def reporte_eventos(db=Depends(get_db)):
 
 @router.get("/mas-vendidos", response_model=list[EventoMasVendidoOut])
 def eventos_mas_vendidos(user=Depends(require_admin), db=Depends(get_db)):
-    db.execute("SELECT * FROM vw_eventos_mas_vendidos LIMIT 10")
-    eventos = db.fetchall()
-
-    if not eventos:
-        raise HTTPException(status_code=404, detail="No se encontraron eventos")
-
-    return eventos
+    db.execute("""
+        SELECT
+            ev.id               AS evento_id,
+            ev.fecha,
+            eq_l.nombre         AS equipo_local,
+            eq_v.nombre         AS equipo_visitante,
+            ev.estadio_pais,
+            ev.estadio_localidad,
+            COUNT(e.id)         AS total_entradas_vendidas
+        FROM Evento ev
+        JOIN Equipo eq_l ON eq_l.id = ev.equipo_local_id
+        JOIN Equipo eq_v ON eq_v.id = ev.equipo_visitante_id
+        LEFT JOIN EventoSector es ON es.evento_id = ev.id
+        LEFT JOIN Entrada e ON e.evento_id = ev.id AND e.sector_id = es.sector_id
+        GROUP BY ev.id, ev.fecha, eq_l.nombre, eq_v.nombre, ev.estadio_pais, ev.estadio_localidad
+        ORDER BY total_entradas_vendidas DESC
+        LIMIT 10
+    """)
+    return db.fetchall()
 
 
 @router.get("/funcionario/{usuario_mail}/cobertura", response_model=list[CoberturFuncionarioOut])
 def cobertura_funcionario(usuario_mail: str, user=Depends(require_admin), db=Depends(get_db)):
-    db.execute(
-        "SELECT usuario_mail FROM Funcionario WHERE usuario_mail = %s",
-        (usuario_mail,)
-    )
+    db.execute("SELECT usuario_mail FROM Funcionario WHERE usuario_mail = %s", (usuario_mail,))
     if not db.fetchone():
         raise HTTPException(status_code=404, detail="Funcionario no encontrado")
 
-    db.execute(
-        "SELECT * FROM vw_cobertura_funcionarios WHERE funcionario_mail = %s",
-        (usuario_mail,)
-    )
+    db.execute("""
+        SELECT
+            fse.funcionario_mail,
+            fse.evento_id,
+            fse.sector_id,
+            s.nombre AS sector_nombre,
+            EXISTS (
+                SELECT 1 FROM Validacion val
+                JOIN Entrada en2 ON en2.id = val.entrada_id
+                WHERE en2.evento_id = fse.evento_id
+                  AND en2.sector_id = fse.sector_id
+                  AND val.funcionario_mail = fse.funcionario_mail
+            ) AS sector_cubierto
+        FROM FuncionarioSectorEvento fse
+        JOIN Sector s ON s.id = fse.sector_id
+        WHERE fse.funcionario_mail = %s
+    """, (usuario_mail,))
     return db.fetchall()
 
 
 @router.get("/disponibilidad_evento/{id}", response_model=list[DisponibilidadOut])
 def disponibilidad_evento(id: str, user=Depends(require_any_role), db=Depends(get_db)):
-    db.execute(
-        "SELECT * FROM vw_disponibilidad WHERE evento_id = %s",
-        (id,)
-    )
-    disponibilidad = db.fetchall()
-
-    if not disponibilidad:
+    db.execute("""
+        SELECT
+            es.evento_id,
+            es.sector_id,
+            s.nombre                  AS sector_nombre,
+            s.estadio_pais,
+            s.estadio_localidad,
+            s.capacidad               AS capacidad_maxima,
+            COUNT(e.id)               AS entradas_emitidas,
+            s.capacidad - COUNT(e.id) AS disponibles
+        FROM EventoSector es
+        JOIN Sector s ON s.id = es.sector_id
+        LEFT JOIN Entrada e ON e.evento_id = es.evento_id AND e.sector_id = es.sector_id
+        WHERE es.evento_id = %s
+        GROUP BY es.evento_id, es.sector_id, s.nombre, s.estadio_pais, s.estadio_localidad, s.capacidad
+    """, (id,))
+    rows = db.fetchall()
+    if not rows:
         raise HTTPException(status_code=404, detail="Evento no encontrado o sin sectores habilitados")
-
-    return disponibilidad
+    return rows
 
 
 @router.get("/mayores-compradores", response_model=list[MayorCompradorOut])
 def mayores_compradores(user=Depends(require_admin), db=Depends(get_db)):
-    db.execute("SELECT * FROM vw_mayores_compradores LIMIT 10")
-    compradores = db.fetchall()
-
-    if not compradores:
-        raise HTTPException(status_code=404, detail="No se encontraron compradores")
-
-    return compradores
+    db.execute("""
+        SELECT
+            u.mail,
+            COUNT(e.id)    AS total_entradas_compradas,
+            SUM(v.precio)  AS total_gastado
+        FROM Usuario u
+        JOIN Venta v   ON v.usuario_mail = u.mail
+        JOIN Entrada e ON e.venta_id     = v.id
+        GROUP BY u.mail
+        ORDER BY total_entradas_compradas DESC
+        LIMIT 10
+    """)
+    return db.fetchall()
