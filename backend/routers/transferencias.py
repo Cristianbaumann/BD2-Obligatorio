@@ -1,20 +1,67 @@
 from fastapi import APIRouter, Depends, HTTPException
-from dependencies.auth import require_any_role
+from pydantic import BaseModel, EmailStr
+from dependencies.auth import require_any_role, get_current_user
 from database import get_db
 
 router = APIRouter(prefix="/transferencias", tags=["transferencias"])
 
 
+class TransferenciaIn(BaseModel):
+    entrada_id: str
+    mail_destino: EmailStr
+
+
 @router.get("/")
 def list_transferencias():
-    # TODO: list all transferencias
     pass
 
 
 @router.post("/")
-def create_transferencia():
-    # TODO: create transferencia
-    pass
+def create_transferencia(body: TransferenciaIn, user=Depends(get_current_user), db=Depends(get_db)):
+    entrada_id = body.entrada_id
+    mail_destino = body.mail_destino
+
+    # Verify recipient exists in Usuario
+    db.execute("SELECT mail FROM Usuario WHERE mail = %s", (mail_destino,))
+    if not db.fetchone():
+        raise HTTPException(status_code=404, detail="El destinatario no está registrado en el sistema")
+
+    # Lock and verify entrada
+    db.execute("SELECT titular_mail, consumido FROM Entrada WHERE id = %s FOR UPDATE", (entrada_id,))
+    entrada = db.fetchone()
+    if not entrada:
+        raise HTTPException(status_code=404, detail="Entrada no encontrada")
+    if entrada["consumido"]:
+        raise HTTPException(status_code=400, detail="No se puede transferir una entrada consumida")
+    if entrada["titular_mail"] != user["mail"]:
+        raise HTTPException(status_code=403, detail="Solo el titular puede transferir esta entrada")
+    if entrada["titular_mail"] == mail_destino:
+        raise HTTPException(status_code=400, detail="No podés transferirte una entrada a vos mismo")
+
+    # Check transfer limit (max 3)
+    db.execute("SELECT COUNT(*) AS cnt FROM Transferencia WHERE entrada_id = %s AND estado = 'ACEPTADA'", (entrada_id,))
+    if db.fetchone()["cnt"] >= 3:
+        raise HTTPException(status_code=400, detail="Esta entrada ya fue transferida 3 veces (límite máximo)")
+
+    # Check no pending transfer
+    db.execute("SELECT COUNT(*) AS cnt FROM Transferencia WHERE entrada_id = %s AND estado = 'PENDIENTE'", (entrada_id,))
+    if db.fetchone()["cnt"] > 0:
+        raise HTTPException(status_code=400, detail="Ya existe una transferencia pendiente para esta entrada")
+
+    # Insert transfer record as ACEPTADA (immediate)
+    db.execute(
+        "INSERT INTO Transferencia (entrada_id, origen_mail, destino_mail, fecha, estado) VALUES (%s, %s, %s, NOW(), 'ACEPTADA')",
+        (entrada_id, user["mail"], mail_destino),
+    )
+
+    # Update titular
+    db.execute("UPDATE Entrada SET titular_mail = %s WHERE id = %s", (mail_destino, entrada_id))
+
+    # Invalidate old QR so recipient gets a fresh one
+    db.execute("UPDATE Qr SET activo = FALSE WHERE entrada_id = %s", (entrada_id,))
+
+    db.commit()
+    return {"message": "Entrada transferida exitosamente"}
 
 
 @router.get("/{id}")

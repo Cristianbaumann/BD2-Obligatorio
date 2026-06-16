@@ -23,7 +23,7 @@ export default function Transferir() {
 
   useEffect(() => {
     api.get('/entradas/mis-entradas')
-      .then(r => setEntradas((r.data || []).filter(e => e.estado === 'ACTIVA' || !e.estado)))
+      .then(r => setEntradas((r.data || []).filter(e => !e.consumido)))
       .catch(() => toast.error('Error al cargar entradas'))
       .finally(() => setLoadingEntradas(false))
   }, [])
@@ -34,13 +34,13 @@ export default function Transferir() {
     setLoading(true)
     try {
       await api.post('/transferencias', {
-        entrada_id: Number(form.entrada_id),
+        entrada_id: form.entrada_id,
         mail_destino: form.mail_destino,
       })
       toast.success(`Entrada transferida a ${form.mail_destino}`)
       setForm({ entrada_id: '', mail_destino: '' })
       const r = await api.get('/entradas/mis-entradas')
-      setEntradas((r.data || []).filter(e => e.estado === 'ACTIVA' || !e.estado))
+      setEntradas((r.data || []).filter(e => !e.consumido))
     } catch (err) {
       toast.error(extractDetail(err, 'Error al transferir'))
     } finally {
