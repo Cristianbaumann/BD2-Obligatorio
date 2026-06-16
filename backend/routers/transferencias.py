@@ -40,13 +40,11 @@ def create_transferencia(body: TransferenciaCreate, user=Depends(get_current_use
         raise HTTPException(status_code=400, detail="Ya existe una transferencia pendiente para esta entrada")
 
     db.execute(
-        "INSERT INTO Transferencia (entrada_id, origen_mail, destino_mail, fecha, estado) VALUES (%s, %s, %s, NOW(), 'ACEPTADA')",
+        "INSERT INTO Transferencia (entrada_id, origen_mail, destino_mail, fecha, estado) VALUES (%s, %s, %s, NOW(), 'PENDIENTE')",
         (entrada_id, user["mail"], mail_destino),
     )
-    db.execute("UPDATE Entrada SET titular_mail = %s WHERE id = %s", (mail_destino, entrada_id))
-    db.execute("UPDATE Qr SET activo = FALSE WHERE entrada_id = %s", (entrada_id,))
 
-    return {"message": "Entrada transferida exitosamente"}
+    return {"message": "Transferencia solicitada. El destinatario debe aceptarla."}
 
 
 @router.get("/{id}")
@@ -96,16 +94,35 @@ def solicitar_transferencia(entrada_id: int, email_destinatario: str, user=Depen
 
 
 @router.patch("/{id}/rechazar")
-def rechazar_transferencia(id: str, user=Depends(require_any_role), db=Depends(get_db)):
-    db.execute("UPDATE Transferencia SET estado = 'RECHAZADA' WHERE id = %s AND estado = 'PENDIENTE'", (id,))
-    if db.rowcount == 0:
+def rechazar_transferencia(id: str, user=Depends(get_current_user), db=Depends(get_db)):
+    db.execute(
+        "SELECT destino_mail FROM Transferencia WHERE id = %s AND estado = 'PENDIENTE'",
+        (id,),
+    )
+    transferencia = db.fetchone()
+    if not transferencia:
         raise HTTPException(status_code=404, detail="Transferencia no encontrada o no está pendiente")
+    if transferencia["destino_mail"] != user["mail"]:
+        raise HTTPException(status_code=403, detail="Solo el destinatario puede rechazar esta transferencia")
+
+    db.execute("UPDATE Transferencia SET estado = 'RECHAZADA' WHERE id = %s", (id,))
     return {"message": "Transferencia rechazada exitosamente"}
 
 
 @router.patch("/{id}/aceptar")
-def aceptar_transferencia(id: str, user=Depends(require_any_role), db=Depends(get_db)):
-    db.execute("UPDATE Transferencia SET estado = 'ACEPTADA' WHERE id = %s AND estado = 'PENDIENTE'", (id,))
-    if db.rowcount == 0:
+def aceptar_transferencia(id: str, user=Depends(get_current_user), db=Depends(get_db)):
+    db.execute(
+        "SELECT t.entrada_id, t.destino_mail FROM Transferencia t WHERE t.id = %s AND t.estado = 'PENDIENTE'",
+        (id,),
+    )
+    transferencia = db.fetchone()
+    if not transferencia:
         raise HTTPException(status_code=404, detail="Transferencia no encontrada o no está pendiente")
+    if transferencia["destino_mail"] != user["mail"]:
+        raise HTTPException(status_code=403, detail="Solo el destinatario puede aceptar esta transferencia")
+
+    db.execute("UPDATE Transferencia SET estado = 'ACEPTADA' WHERE id = %s", (id,))
+    db.execute("UPDATE Entrada SET titular_mail = %s WHERE id = %s", (user["mail"], transferencia["entrada_id"]))
+    db.execute("UPDATE Qr SET activo = FALSE WHERE entrada_id = %s", (transferencia["entrada_id"],))
+
     return {"message": "Transferencia aceptada exitosamente"}

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Ticket, ChevronDown, ChevronUp, ArrowRightLeft, X, AlertTriangle } from 'lucide-react'
+import { Ticket, ChevronDown, ChevronUp, ArrowRightLeft, X, AlertTriangle, Check, Ban } from 'lucide-react'
 import toast from 'react-hot-toast'
 import QRCountdown from '../../components/QRCountdown'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
+import useAuthStore from '../../store/authStore'
 
 const USER_LINKS = [['Eventos', '/eventos'], ['Mis Entradas', '/mis-entradas']]
 
@@ -19,7 +20,7 @@ function TransferModal({ modal, onClose, onSuccess }) {
     setSending(true)
     api.post('/transferencias/', { entrada_id: modal.entradaId, destino_mail: email.trim() })
       .then(() => {
-        toast.success('Entrada transferida correctamente')
+        toast.success('Solicitud enviada. El destinatario debe aceptarla.')
         onSuccess()
         onClose()
       })
@@ -402,9 +403,12 @@ function EventGroup({ evento, entradas, index, onTransfer }) {
 }
 
 export default function MisEntradas() {
+  const { user } = useAuthStore()
   const [entradas, setEntradas] = useState([])
   const [loading, setLoading] = useState(true)
   const [transferModal, setTransferModal] = useState(null)
+  const [pendientes, setPendientes] = useState([])
+  const [respondiendo, setRespondiendo] = useState(null)
 
   function fetchEntradas() {
     setLoading(true)
@@ -414,7 +418,31 @@ export default function MisEntradas() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { fetchEntradas() }, [])
+  function fetchPendientes() {
+    if (!user?.mail) return
+    api.get(`/transferencias/mis-transferencias?mail_usuario=${encodeURIComponent(user.mail)}`)
+      .then(r => {
+        const all = r.data?.transferencias || []
+        setPendientes(all.filter(t => t.estado === 'PENDIENTE' && t.destino_mail === user.mail))
+      })
+      .catch(() => {})
+  }
+
+  async function responderTransferencia(id, accion) {
+    setRespondiendo(id)
+    try {
+      await api.patch(`/transferencias/${id}/${accion}`)
+      toast.success(accion === 'aceptar' ? 'Entrada aceptada' : 'Transferencia rechazada')
+      fetchPendientes()
+      fetchEntradas()
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Error')
+    } finally {
+      setRespondiendo(null)
+    }
+  }
+
+  useEffect(() => { fetchEntradas(); fetchPendientes() }, [])
 
   const eventos = Object.values(
     entradas.reduce((acc, e) => {
@@ -441,6 +469,64 @@ export default function MisEntradas() {
             {entradas.length} entrada{entradas.length !== 1 ? 's' : ''} · {eventos.length} evento{eventos.length !== 1 ? 's' : ''}
           </p>
         </motion.div>
+
+        {pendientes.length > 0 && (
+          <div style={{ marginBottom: '32px' }}>
+            <h2 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '24px', color: '#C9A227', letterSpacing: '1px', marginBottom: '12px' }}>
+              Transferencias Pendientes
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {pendientes.map(t => (
+                <motion.div
+                  key={t.transferencia_id}
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px',
+                    padding: '14px 18px',
+                    background: 'rgba(201,162,39,0.06)',
+                    border: '1px solid rgba(201,162,39,0.2)',
+                    borderRadius: '10px',
+                  }}
+                >
+                  <div>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#fff', margin: '0 0 2px 0' }}>
+                      Entrada <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#C9A227' }}>#{String(t.entrada_id).slice(-6).toUpperCase()}</span>
+                    </p>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+                      De: {t.origen_mail}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                    <button
+                      onClick={() => responderTransferencia(t.transferencia_id, 'rechazar')}
+                      disabled={respondiendo === t.transferencia_id}
+                      style={{
+                        padding: '7px 14px', borderRadius: '7px', border: '1px solid rgba(239,68,68,0.3)',
+                        background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer',
+                        fontFamily: 'Bebas Neue, cursive', fontSize: '13px', letterSpacing: '1px',
+                        display: 'flex', alignItems: 'center', gap: '5px',
+                      }}
+                    >
+                      <Ban size={12} /> Rechazar
+                    </button>
+                    <button
+                      onClick={() => responderTransferencia(t.transferencia_id, 'aceptar')}
+                      disabled={respondiendo === t.transferencia_id}
+                      style={{
+                        padding: '7px 14px', borderRadius: '7px', border: 'none',
+                        background: '#22c55e', color: '#0A0A12', cursor: 'pointer',
+                        fontFamily: 'Bebas Neue, cursive', fontSize: '13px', letterSpacing: '1px',
+                        display: 'flex', alignItems: 'center', gap: '5px',
+                      }}
+                    >
+                      <Check size={12} /> Aceptar
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '80px' }}>

@@ -37,7 +37,7 @@ export default function Transferir() {
         entrada_id: form.entrada_id,
         destino_mail: form.mail_destino,
       })
-      toast.success(`Entrada transferida a ${form.mail_destino}`)
+      toast.success(`Solicitud enviada a ${form.mail_destino}. Debe aceptarla.`)
       setForm({ entrada_id: '', mail_destino: '' })
       const r = await api.get('/entradas/mis-entradas')
       setEntradas((r.data || []).filter(e => !e.consumido))
