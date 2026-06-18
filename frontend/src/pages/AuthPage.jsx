@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence, useAnimation } from 'framer-motion'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Plus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import useAuthStore from '../store/authStore'
 import api from '../services/api'
@@ -260,7 +260,7 @@ function AuthSelect({ label, value, onChange, options }) {
 }
 
 // ─── RegisterForm ─────────────────────────────────────────────────────────────
-function RegisterForm({ form, setField, onSubmit }) {
+function RegisterForm({ form, setField, onSubmit, setTelefono, addTelefono, removeTelefono }) {
   const sectionLabel = (text) => (
     <p style={{ fontSize: '9px', color: 'rgba(201,162,39,0.5)', letterSpacing: '3px', textTransform: 'uppercase', margin: '4px 0 0' }}>{text}</p>
   )
@@ -308,6 +308,50 @@ function RegisterForm({ form, setField, onSubmit }) {
             <AuthInput label="Número" placeholder="1234" value={form.dir_numero} onChange={setField('dir_numero')} />
           </div>
 
+          {sectionLabel('Teléfonos (opcional)')}
+          {form.telefonos.map((tel, idx) => (
+            <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ flex: 1 }}>
+                <AuthInput
+                  label={idx === 0 ? 'Teléfono' : undefined}
+                  type="tel"
+                  placeholder="+54 9 11 1234-5678"
+                  value={tel}
+                  onChange={e => setTelefono(idx, e.target.value)}
+                />
+              </div>
+              {form.telefonos.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeTelefono(idx)}
+                  style={{
+                    marginTop: idx === 0 ? '26px' : '0',
+                    flexShrink: 0, width: '32px', height: '32px', borderRadius: '8px',
+                    background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.25)',
+                    color: 'rgba(255,80,80,0.7)', cursor: 'pointer', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          ))}
+          {form.telefonos.length < 4 && (
+            <button
+              type="button"
+              onClick={addTelefono}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'rgba(201,162,39,0.55)', fontSize: '11px', letterSpacing: '2px',
+                textTransform: 'uppercase', padding: '2px 0',
+              }}
+            >
+              <Plus size={12} /> Agregar teléfono
+            </button>
+          )}
+
           {sectionLabel('Cuenta')}
           <AuthInput label="Email" type="email" placeholder="tu@email.com" autoComplete="email" value={form.email} onChange={setField('email')} />
           <AuthInput label="Contraseña" type="password" placeholder="••••••••" autoComplete="new-password" value={form.password} onChange={setField('password')} />
@@ -333,6 +377,7 @@ export default function AuthPage({ initialMode = 'login' }) {
     email: '', password: '',
     doc_pais: '', doc_tipo: 'CI', doc_numero: '',
     dir_pais: '', dir_localidad: '', dir_calle: '', dir_numero: '',
+    telefonos: [''],
   })
 
   // Three independent controls:
@@ -345,6 +390,14 @@ export default function AuthPage({ initialMode = 'login' }) {
 
   const setL = field => e => setLoginForm(f    => ({ ...f, [field]: e.target.value }))
   const setR = field => e => setRegisterForm(f => ({ ...f, [field]: e.target.value }))
+
+  const setTelefono = (idx, val) => setRegisterForm(f => {
+    const t = [...f.telefonos]; t[idx] = val; return { ...f, telefonos: t }
+  })
+  const addTelefono = () => setRegisterForm(f => ({ ...f, telefonos: [...f.telefonos, ''] }))
+  const removeTelefono = (idx) => setRegisterForm(f => ({
+    ...f, telefonos: f.telefonos.filter((_, i) => i !== idx)
+  }))
 
   async function switchMode(target) {
     if (animating || target === mode) return
@@ -389,7 +442,8 @@ export default function AuthPage({ initialMode = 'login' }) {
   async function handleRegister(e) {
     e.preventDefault()
     try {
-      const res = await api.post('/auth/register', registerForm)
+      const payload = { ...registerForm, telefonos: registerForm.telefonos.filter(t => t.trim() !== '') }
+      const res = await api.post('/auth/register', payload)
       const { access_token, ...userData } = res.data
       login(access_token, userData)
       setShowTunnel(true)
@@ -427,7 +481,10 @@ export default function AuthPage({ initialMode = 'login' }) {
           initial={{ opacity: initialMode === 'register' ? 1 : 0 }}
           style={{ ...formSlot, left: '50%', pointerEvents: mode === 'register' && !animating ? 'auto' : 'none' }}
         >
-          <RegisterForm form={registerForm} setField={setR} onSubmit={handleRegister} />
+          <RegisterForm
+            form={registerForm} setField={setR} onSubmit={handleRegister}
+            setTelefono={setTelefono} addTelefono={addTelefono} removeTelefono={removeTelefono}
+          />
         </motion.div>
 
         {/* ── Sliding image panel — covers whichever form is inactive ── */}
