@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import confetti from 'canvas-confetti'
 import toast from 'react-hot-toast'
 import StadiumBowl from '../../components/admin/StadiumBowl'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
 import useAuthStore from '../../store/authStore'
-
-const USER_LINKS = [['Eventos', '/eventos'], ['Mis Entradas', '/mis-entradas'], ['Transferir', '/transferir']]
+import { USER_LINKS } from '../../constants/navLinks'
 
 function availColor(disponibles, total) {
   if (disponibles === 0) return '#374151'
@@ -75,12 +73,11 @@ export default function ComprarEntrada() {
             cantidad,
           })),
       })
-      confetti({ particleCount: 200, spread: 80, origin: { y: 0.5 }, colors: ['#C9A227', '#ffffff', '#22c55e'] })
-      toast.success(`¡${totalSelected} entrada${totalSelected > 1 ? 's' : ''} comprada${totalSelected > 1 ? 's' : ''}!`)
-      setTimeout(() => navigate('/mis-entradas'), 2000)
+      toast.success(`${totalSelected} entrada${totalSelected > 1 ? 's' : ''} agregada${totalSelected > 1 ? 's' : ''} al carrito`)
+      navigate('/carrito')
     } catch (err) {
       const detail = err.response?.data?.detail
-      toast.error(typeof detail === 'string' ? detail : 'Error al procesar la compra')
+      toast.error(typeof detail === 'string' ? detail : 'Error al agregar al carrito')
     } finally {
       setLoading(false)
     }
@@ -304,7 +301,7 @@ export default function ComprarEntrada() {
                           className="btn-gold"
                           style={{ padding: '14px 40px', fontSize: '20px', letterSpacing: '2px' }}
                         >
-                          {loading ? 'Procesando...' : `Comprar (${totalSelected})`}
+                          {loading ? 'Reservando...' : `Agregar al carrito (${totalSelected})`}
                         </button>
                       </div>
                     </>
