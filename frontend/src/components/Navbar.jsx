@@ -5,7 +5,7 @@ import { Trophy, LogOut, LogIn, ArrowLeft, Menu, X, Search, MapPin, Calendar } f
 import useAuthStore from '../store/authStore'
 import useEventosStore from '../store/eventosStore'
 
-function NavLink({ to, label, onClick }) {
+function NavLink({ to, label, onClick, showDot = false }) {
   const { pathname } = useLocation()
   const active = pathname === to
   return (
@@ -21,17 +21,33 @@ function NavLink({ to, label, onClick }) {
         borderBottom: active ? '1.5px solid #C9A227' : '1.5px solid transparent',
         paddingBottom: '2px',
         whiteSpace: 'nowrap',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        position: 'relative',
       }}
       onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#C9A227' }}
       onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'rgba(255,255,255,0.55)' }}
     >
       {label}
+      {showDot && (
+        <span style={{ position: 'relative', display: 'inline-flex', width: '11px', height: '11px', flexShrink: 0 }}>
+          <span className="animate-ping" style={{
+            position: 'absolute', inset: 0, borderRadius: '50%',
+            background: '#ef4444', opacity: 0.75,
+          }} />
+          <span style={{
+            position: 'relative', width: '11px', height: '11px', borderRadius: '50%',
+            background: '#ef4444', display: 'inline-block',
+          }} />
+        </span>
+      )}
     </Link>
   )
 }
 
 export default function Navbar({ brand = 'MUNDIAL 2026', links = [], backTo = null, backLabel = 'Volver', rightSlot = null }) {
-  const { logout, user, token, rol } = useAuthStore()
+  const { logout, user, token, rol, estado_verificacion } = useAuthStore()
   const brandTo = rol === 'ADMIN' ? '/admin/dashboard' : rol === 'FUNCIONARIO' ? '/funcionario/dashboard' : '/'
   const navigate = useNavigate()
   const { pathname } = useLocation()
@@ -174,7 +190,10 @@ export default function Navbar({ brand = 'MUNDIAL 2026', links = [], backTo = nu
         {!isMobile && (
           <div style={{ display: 'flex', gap: '28px', alignItems: 'center' }}>
             {links.map(([label, to]) => (
-              <NavLink key={to} to={to} label={label} />
+              <NavLink
+                key={to} to={to} label={label}
+                showDot={to === '/perfil' && rol === 'USUARIO_FINAL' && estado_verificacion !== 'VERIFICADO'}
+              />
             ))}
             <div style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.1)' }} />
             <div ref={searchWrapRef} style={{ position: 'relative' }}>
@@ -436,6 +455,9 @@ export default function Navbar({ brand = 'MUNDIAL 2026', links = [], backTo = nu
                 >
                   {pathname === to && <span style={{ width: '3px', height: '20px', background: '#C9A227', borderRadius: '2px', display: 'inline-block' }} />}
                   {label}
+                  {to === '/perfil' && rol === 'USUARIO_FINAL' && estado_verificacion !== 'VERIFICADO' && (
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444', display: 'inline-block', marginLeft: '2px' }} />
+                  )}
                 </Link>
               ))}
             </div>

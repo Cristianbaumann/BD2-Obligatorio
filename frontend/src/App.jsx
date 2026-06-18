@@ -7,11 +7,11 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
 
-import UsuarioDashboard from './pages/usuario/Dashboard'
 import Eventos from './pages/usuario/Eventos'
 import ComprarEntrada from './pages/usuario/ComprarEntrada'
 import MisEntradas from './pages/usuario/MisEntradas'
 import Transferir from './pages/usuario/Transferir'
+import Perfil from './pages/usuario/Perfil'
 
 import FuncionarioDashboard from './pages/funcionario/Dashboard'
 import Scanner from './pages/funcionario/Scanner'
@@ -33,7 +33,7 @@ function ProtectedRoute({ children, allowedRoles }) {
   if (allowedRoles && !allowedRoles.includes(rol)) {
     if (rol === 'ADMIN') return <Navigate to="/admin/dashboard" replace />
     if (rol === 'FUNCIONARIO') return <Navigate to="/funcionario/dashboard" replace />
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to="/" replace />
   }
 
   return children
@@ -72,11 +72,6 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        <Route path="/dashboard" element={
-          <ProtectedRoute allowedRoles={['USUARIO_FINAL']}>
-            <UsuarioDashboard />
-          </ProtectedRoute>
-        } />
         <Route path="/eventos" element={<SmartEventosRoute />} />
         <Route path="/comprar/:eventoId" element={
           <ProtectedRoute allowedRoles={['USUARIO_FINAL']}>
@@ -91,6 +86,11 @@ export default function App() {
         <Route path="/transferir" element={
           <ProtectedRoute allowedRoles={['USUARIO_FINAL']}>
             <Transferir />
+          </ProtectedRoute>
+        } />
+        <Route path="/perfil" element={
+          <ProtectedRoute allowedRoles={['USUARIO_FINAL']}>
+            <Perfil />
           </ProtectedRoute>
         } />
 
