@@ -19,7 +19,7 @@ const useAuthStore = create(
 
       login(token, userData) {
         const payload = decodeJWT(token)
-        const rol = payload?.rol || payload?.role || userData?.rol || null
+        const rol = payload?.["https://mundial-auth/rol"] || userData?.role || null
         set({ token, user: userData || payload, rol })
       },
 

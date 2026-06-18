@@ -23,10 +23,10 @@ import AdminFuncionarios from './pages/admin/Funcionarios'
 import AdminConfiguracion from './pages/admin/Configuracion'
 
 function ProtectedRoute({ children, allowedRoles }) {
-  const { token, rol } = useAuthStore()
+  const { rol } = useAuthStore()
   const location = useLocation()
 
-  if (!token) {
+  if (!useAuthStore.getState().isAuthenticated()) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
@@ -78,7 +78,11 @@ export default function App() {
           </ProtectedRoute>
         } />
         <Route path="/eventos" element={<SmartEventosRoute />} />
-        <Route path="/comprar/:eventoId" element={<ComprarEntrada />} />
+        <Route path="/comprar/:eventoId" element={
+          <ProtectedRoute allowedRoles={['USUARIO_FINAL']}>
+            <ComprarEntrada />
+          </ProtectedRoute>
+        } />
         <Route path="/mis-entradas" element={
           <ProtectedRoute allowedRoles={['USUARIO_FINAL']}>
             <MisEntradas />
