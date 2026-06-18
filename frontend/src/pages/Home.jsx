@@ -501,7 +501,7 @@ export default function Home() {
       </section>
 
       {/* 3D EVENTS GALLERY */}
-      <section style={{ padding: '80px 0 20px' }}>
+      <section style={{ padding: '24px 0 20px' }}>
           <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 40px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
               <SectionHeader
@@ -536,7 +536,7 @@ export default function Home() {
         </section>
 
       {/* WC HISTORY TIMELINE */}
-      <section style={{ padding: '80px 0' }}>
+      <section style={{ padding: '32px 0' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 40px' }}>
           <SectionHeader
             label="Historia"

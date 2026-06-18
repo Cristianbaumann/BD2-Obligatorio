@@ -489,11 +489,17 @@ export default function MisEntradas() {
                   }}
                 >
                   <div>
-                    <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#fff', margin: '0 0 2px 0' }}>
-                      Entrada <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#C9A227' }}>#{String(t.entrada_id).slice(-6).toUpperCase()}</span>
+                    <p style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '16px', color: '#fff', margin: '0 0 3px 0', letterSpacing: '0.5px' }}>
+                      {t.equipo_local} <span style={{ color: '#C9A227' }}>vs</span> {t.equipo_visitante}
                     </p>
-                    <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>
-                      De: {t.origen_mail}
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: 'rgba(255,255,255,0.5)', margin: '0 0 2px 0' }}>
+                      {t.sector_nombre} · ${Number(t.costo).toLocaleString('es-UY', { minimumFractionDigits: 2 })}
+                    </p>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: 'rgba(255,255,255,0.35)', margin: '0 0 2px 0' }}>
+                      {new Date(t.evento_fecha).toLocaleDateString('es-UY', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '10px', color: 'rgba(255,255,255,0.25)', margin: 0 }}>
+                      #{String(t.entrada_id).padStart(6, '0')} · De: {t.origen_mail}
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>

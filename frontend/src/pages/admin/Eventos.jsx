@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, MapPin, CalendarDays, Pencil, ChevronUp } from 'lucide-react'
+import { Plus, X, MapPin, CalendarDays, Pencil, ChevronUp, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
@@ -115,6 +115,19 @@ export default function AdminEventos() {
       loadEventos()
     } catch (err) {
       toast.error(extractDetail(err, 'Error al crear evento'))
+    }
+  }
+
+  async function handleDelete(ev, id) {
+    ev.stopPropagation()
+    if (!window.confirm('¿Eliminar este evento? Esta acción no se puede deshacer.')) return
+    try {
+      await api.delete(`/eventos/${id}`)
+      toast.success('Evento eliminado')
+      if (editingId === id) { setEditingId(null); resetFormState() }
+      loadEventos()
+    } catch (err) {
+      toast.error(extractDetail(err, 'Error al eliminar evento'))
     }
   }
 
@@ -337,13 +350,22 @@ export default function AdminEventos() {
                         <MapPin size={11} /> {e.estadio || 'Sin estadio'} · {new Date(e.fecha).toLocaleDateString('es-UY', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </p>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                       <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#C9A227', fontSize: '15px', fontWeight: 700 }}>
                         {e.precio_minimo != null ? `$${e.precio_minimo}` : '—'}
                       </span>
+                      <button
+                        onClick={(ev) => handleDelete(ev, e.id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', opacity: 0.4 }}
+                        onMouseEnter={el => el.currentTarget.style.opacity = '1'}
+                        onMouseLeave={el => el.currentTarget.style.opacity = '0.4'}
+                        title="Eliminar evento"
+                      >
+                        <Trash2 size={18} color="#e05252" />
+                      </button>
                       {isOpen
-                        ? <ChevronUp size={14} color="rgba(201,162,39,0.7)" />
-                        : <Pencil size={14} color="rgba(255,255,255,0.25)" />
+                        ? <ChevronUp size={18} color="rgba(201,162,39,0.7)" />
+                        : <Pencil size={18} color="rgba(255,255,255,0.25)" />
                       }
                     </div>
                   </div>

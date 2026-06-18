@@ -1,6 +1,20 @@
 import { useState, useEffect, useRef } from 'react'
 import { Calendar, MapPin, ChevronLeft, ChevronRight } from 'lucide-react'
 
+const FLAG_ISO = {
+  'México': 'mx', 'Sudáfrica': 'za', 'Brasil': 'br', 'Marruecos': 'ma',
+  'Estados Unidos': 'us', 'Paraguay': 'py', 'Países Bajos': 'nl', 'Japón': 'jp',
+  'Canadá': 'ca', 'Bosnia y Herzegovina': 'ba', 'Argentina': 'ar', 'Ecuador': 'ec',
+  'Corea del Sur': 'kr', 'República Checa': 'cz', 'Alemania': 'de', 'Francia': 'fr',
+  'España': 'es', 'Inglaterra': 'gb-eng', 'Portugal': 'pt', 'Croacia': 'hr',
+  'Uruguay': 'uy', 'Colombia': 'co', 'Suiza': 'ch', 'Senegal': 'sn',
+  'Australia': 'au', 'Bélgica': 'be', 'Italia': 'it', 'Costa Rica': 'cr',
+}
+function flagUrl(nombre) {
+  const iso = FLAG_ISO[nombre]
+  return iso ? `https://flagcdn.com/w40/${iso}.png` : null
+}
+
 function EventCard3D({ evento, onClick }) {
   const fecha = new Date(evento.fecha)
   const [hovered, setHovered] = useState(false)
@@ -39,17 +53,29 @@ function EventCard3D({ evento, onClick }) {
       </div>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '6px' }}>
-        <p style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '18px', color: '#fff', margin: 0, letterSpacing: '1px', lineHeight: 1.1, textAlign: 'center' }}>
-          {evento.equipo_local}
-        </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          {flagUrl(evento.equipo_local)
+            ? <img src={flagUrl(evento.equipo_local)} alt={evento.equipo_local} style={{ width: '36px', height: 'auto', borderRadius: '3px', display: 'inline-block' }} />
+            : <span style={{ fontSize: '22px' }}>🏳</span>
+          }
+          <p style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '16px', color: '#fff', margin: '4px 0 0', letterSpacing: '1px', lineHeight: 1.1 }}>
+            {evento.equipo_local}
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', margin: '2px 0' }}>
           <div style={{ height: '1px', flex: 1, background: 'linear-gradient(to right, transparent, rgba(201,162,39,0.3))' }} />
           <span style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '12px', color: 'rgba(201,162,39,0.65)', letterSpacing: '2px' }}>VS</span>
           <div style={{ height: '1px', flex: 1, background: 'linear-gradient(to left, transparent, rgba(201,162,39,0.3))' }} />
         </div>
-        <p style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '18px', color: '#fff', margin: 0, letterSpacing: '1px', lineHeight: 1.1, textAlign: 'center' }}>
-          {evento.equipo_visitante}
-        </p>
+        <div style={{ textAlign: 'center' }}>
+          {flagUrl(evento.equipo_visitante)
+            ? <img src={flagUrl(evento.equipo_visitante)} alt={evento.equipo_visitante} style={{ width: '36px', height: 'auto', borderRadius: '3px', display: 'inline-block' }} />
+            : <span style={{ fontSize: '22px' }}>🏳</span>
+          }
+          <p style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '16px', color: '#fff', margin: '4px 0 0', letterSpacing: '1px', lineHeight: 1.1 }}>
+            {evento.equipo_visitante}
+          </p>
+        </div>
       </div>
 
       <div style={{ borderTop: '1px solid rgba(201,162,39,0.1)', paddingTop: '10px', marginTop: '10px' }}>
@@ -100,7 +126,7 @@ export default function CircularGallery({ events, onSelect }) {
         if (Math.abs(velRef.current) > 0.4) {
           velRef.current *= 0.92
         } else {
-          velRef.current = 0.4 // auto-rotate ~24°/s
+          velRef.current = 0.15 // auto-rotate ~9°/s
         }
         rotRef.current += velRef.current
         setTick(t => t + 1) // trigger re-render
