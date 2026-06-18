@@ -6,11 +6,25 @@ import useAuthStore from '../store/authStore'
 import api from '../services/api'
 import TunnelAnimation from '../components/TunnelAnimation'
 
+const FIELD_LABELS = {
+  email: 'Email', password: 'Contraseña',
+  nombre: 'Nombre', apellido: 'Apellido',
+  doc_pais: 'País del documento', doc_tipo: 'Tipo de documento', doc_numero: 'Número de documento',
+  dir_pais: 'País', dir_localidad: 'Localidad', dir_calle: 'Calle', dir_numero: 'Número de calle',
+}
+
 function extractDetail(err, fallback = 'Error') {
   const d = err?.response?.data?.detail
   if (!d) return fallback
   if (typeof d === 'string') return d
-  if (Array.isArray(d)) return d.map(x => x.msg).join('; ')
+  if (Array.isArray(d)) {
+    const missing = d
+      .filter(x => x.msg?.toLowerCase().includes('required'))
+      .map(x => FIELD_LABELS[x.loc?.at(-1)] ?? null)
+      .filter(Boolean)
+    if (missing.length) return `Completá los campos: ${missing.join(', ')}`
+    return d.map(x => FIELD_LABELS[x.loc?.at(-1)] ? `${FIELD_LABELS[x.loc.at(-1)]}: ${x.msg}` : x.msg).join('; ')
+  }
   return fallback
 }
 
@@ -217,36 +231,88 @@ function LoginForm({ form, setField, onSubmit }) {
   )
 }
 
+// ─── AuthSelect ───────────────────────────────────────────────────────────────
+function AuthSelect({ label, value, onChange, options }) {
+  const [focused, setFocused] = useState(false)
+  return (
+    <div>
+      {label && (
+        <label style={{ display: 'block', marginBottom: '8px', fontSize: '10px', color: 'rgba(255,255,255,0.38)', letterSpacing: '3px', textTransform: 'uppercase', fontWeight: 500 }}>
+          {label}
+        </label>
+      )}
+      <select
+        value={value} onChange={onChange}
+        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+        style={{
+          width: '100%', height: '48px', boxSizing: 'border-box',
+          padding: '0 1rem', borderRadius: '12px',
+          background: 'rgba(255,255,255,0.04)',
+          border: `1px solid ${focused ? '#C9A227' : 'rgba(201,162,39,0.18)'}`,
+          color: '#fff', fontSize: '14px', outline: 'none',
+          transition: 'border-color 0.2s', appearance: 'none', cursor: 'pointer',
+        }}
+      >
+        {options.map(o => <option key={o} value={o} style={{ background: '#0A0A12' }}>{o}</option>)}
+      </select>
+    </div>
+  )
+}
+
 // ─── RegisterForm ─────────────────────────────────────────────────────────────
 function RegisterForm({ form, setField, onSubmit }) {
+  const sectionLabel = (text) => (
+    <p style={{ fontSize: '9px', color: 'rgba(201,162,39,0.5)', letterSpacing: '3px', textTransform: 'uppercase', margin: '4px 0 0' }}>{text}</p>
+  )
+
   return (
-    <div style={{ width: '100%', maxWidth: '360px' }}>
+    <div style={{ width: '100%', maxWidth: '420px' }}>
       <div style={{
         display: 'inline-block', padding: '4px 12px', borderRadius: '6px',
         background: 'rgba(201,162,39,0.08)', border: '1px solid rgba(201,162,39,0.22)',
         color: '#C9A227', fontSize: '10px', letterSpacing: '3px',
-        textTransform: 'uppercase', fontWeight: 500, marginBottom: '20px',
+        textTransform: 'uppercase', fontWeight: 500, marginBottom: '16px',
       }}>
         Nueva Cuenta
       </div>
-      <h1 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '58px', lineHeight: 1, color: '#fff', letterSpacing: '2px', marginBottom: '10px' }}>
+      <h1 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '52px', lineHeight: 1, color: '#fff', letterSpacing: '2px', marginBottom: '8px' }}>
         Crear Cuenta
       </h1>
-      <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '13px', lineHeight: 1.65, marginBottom: '36px' }}>
+      <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '13px', lineHeight: 1.65, marginBottom: '20px' }}>
         Registrate para comprar tus entradas
       </p>
-      <div style={{ height: '1px', width: '48px', marginBottom: '32px', background: 'linear-gradient(to right, #C9A227, transparent)' }} />
+      <div style={{ height: '1px', width: '48px', marginBottom: '20px', background: 'linear-gradient(to right, #C9A227, transparent)' }} />
       <form onSubmit={onSubmit}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+          {sectionLabel('Datos personales')}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <AuthInput label="Nombre" placeholder="Lionel" value={form.nombre} onChange={setField('nombre')} />
             <AuthInput label="Apellido" placeholder="Messi" value={form.apellido} onChange={setField('apellido')} />
           </div>
-          <AuthInput label="Documento" placeholder="12345678" value={form.documento} onChange={setField('documento')} />
+
+          {sectionLabel('Documento')}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <AuthSelect label="Tipo" value={form.doc_tipo} onChange={setField('doc_tipo')} options={['CI', 'Pasaporte', 'DNI', 'Otro']} />
+            <AuthInput label="País emisor" placeholder="Argentina" value={form.doc_pais} onChange={setField('doc_pais')} />
+          </div>
+          <AuthInput label="Número de documento" placeholder="12345678" value={form.doc_numero} onChange={setField('doc_numero')} />
+
+          {sectionLabel('Dirección')}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <AuthInput label="País" placeholder="Argentina" value={form.dir_pais} onChange={setField('dir_pais')} />
+            <AuthInput label="Localidad" placeholder="Buenos Aires" value={form.dir_localidad} onChange={setField('dir_localidad')} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+            <AuthInput label="Calle" placeholder="Av. Corrientes" value={form.dir_calle} onChange={setField('dir_calle')} />
+            <AuthInput label="Número" placeholder="1234" value={form.dir_numero} onChange={setField('dir_numero')} />
+          </div>
+
+          {sectionLabel('Cuenta')}
           <AuthInput label="Email" type="email" placeholder="tu@email.com" autoComplete="email" value={form.email} onChange={setField('email')} />
           <AuthInput label="Contraseña" type="password" placeholder="••••••••" autoComplete="new-password" value={form.password} onChange={setField('password')} />
         </div>
-        <div style={{ marginTop: '32px' }}>
+        <div style={{ marginTop: '24px' }}>
           <GoldButton>Crear Cuenta</GoldButton>
         </div>
       </form>
@@ -262,7 +328,12 @@ export default function AuthPage({ initialMode = 'login' }) {
   const [showTunnel, setShowTunnel] = useState(false)
 
   const [loginForm, setLoginForm]       = useState({ email: '', password: '' })
-  const [registerForm, setRegisterForm] = useState({ nombre: '', apellido: '', email: '', password: '', documento: '' })
+  const [registerForm, setRegisterForm] = useState({
+    nombre: '', apellido: '',
+    email: '', password: '',
+    doc_pais: '', doc_tipo: 'CI', doc_numero: '',
+    dir_pais: '', dir_localidad: '', dir_calle: '', dir_numero: '',
+  })
 
   // Three independent controls:
   //   imageControls  — the sliding image panel (x: 0 = left half, x:'100%' = right half)
@@ -318,9 +389,10 @@ export default function AuthPage({ initialMode = 'login' }) {
   async function handleRegister(e) {
     e.preventDefault()
     try {
-      await api.post('/auth/register', registerForm)
-      toast.success('¡Cuenta creada! Iniciá sesión.')
-      await switchMode('login')
+      const res = await api.post('/auth/register', registerForm)
+      const { access_token, ...userData } = res.data
+      login(access_token, userData)
+      setShowTunnel(true)
     } catch (err) {
       toast.error(extractDetail(err, 'Error al registrarse'))
     }
@@ -328,7 +400,9 @@ export default function AuthPage({ initialMode = 'login' }) {
 
   const formSlot = {
     position: 'absolute', top: 0, bottom: 0, width: '50%',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 56px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: mode === 'register' ? '0 32px' : '0 56px',
+    overflowY: 'auto',
     zIndex: 5,
   }
 
