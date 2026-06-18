@@ -25,18 +25,19 @@ def validate_entrada(
     if db.fetchone() is None:
         raise HTTPException(status_code=403, detail="Dispositivo no autorizado para este funcionario")
 
-    # 2. Verificar QR activo
+    # 2. Verificar QR activo y no expirado
     db.execute(
         """
-        SELECT id, entrada_id
+        SELECT id, entrada_id, creado_en
         FROM Qr
         WHERE codigo_hash = %s AND activo = TRUE
+        AND creado_en > DATE_SUB(NOW(), INTERVAL 30 SECOND)
         """,
         (body.codigo_hash,)
     )
     qr = db.fetchone()
     if qr is None:
-        raise HTTPException(status_code=404, detail="QR no encontrado o inactivo")
+        raise HTTPException(status_code=404, detail="QR no encontrado, inactivo o expirado")
 
     entrada_id = qr["entrada_id"]
 
