@@ -5,9 +5,9 @@ logger = logging.getLogger(__name__)
 
 from database import get_db
 from schemas.auth import RegisterRequest, LoginRequest, AuthResponse, UserResponse
-from core.security import create_access_token, ROLE_USUARIO_FINAL
+from core.security import ROLE_USUARIO_FINAL
 from dependencies.auth import get_current_user
-from services.auth0_service import auth0_service
+from services.auth0_service import auth0_service, extract_sub
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -53,13 +53,14 @@ async def register(body: RegisterRequest, cursor=Depends(get_db)):
             detail=f"Error al guardar usuario en base de datos: {e}",
         )
 
-    token = create_access_token(mail=body.email, role=ROLE_USUARIO_FINAL)
-    return AuthResponse(access_token=token, role=ROLE_USUARIO_FINAL, mail=body.email)
+    auth0_token = await auth0_service.authenticate_user(body.email, body.password)
+    return AuthResponse(access_token=auth0_token, role=ROLE_USUARIO_FINAL, mail=body.email)
 
 
 @router.post("/login", response_model=AuthResponse)
 async def login(body: LoginRequest, cursor=Depends(get_db)):
-    auth0_id = await auth0_service.authenticate_user(body.email, body.password)
+    auth0_token = await auth0_service.authenticate_user(body.email, body.password)
+    auth0_id = extract_sub(auth0_token)
 
     cursor.execute(
         "SELECT mail, rol FROM Usuario WHERE auth0_id = %s",
@@ -72,8 +73,7 @@ async def login(body: LoginRequest, cursor=Depends(get_db)):
             detail="Usuario no encontrado en el sistema",
         )
 
-    token = create_access_token(mail=user["mail"], role=user["rol"])
-    return AuthResponse(access_token=token, role=user["rol"], mail=user["mail"])
+    return AuthResponse(access_token=auth0_token, role=user["rol"], mail=user["mail"])
 
 
 @router.get("/me", response_model=UserResponse)

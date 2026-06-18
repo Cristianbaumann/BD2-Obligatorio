@@ -7,9 +7,6 @@ class Settings(BaseSettings):
     DB_USER: str = "root"
     DB_PASSWORD: str = ""
     DB_NAME: str = "ticketing"
-    JWT_SECRET_KEY: str = "change_me"
-    JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = 60
 
     AUTH0_DOMAIN: str = ""
     AUTH0_MGMT_CLIENT_ID: str = ""

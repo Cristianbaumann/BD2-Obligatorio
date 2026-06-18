@@ -64,6 +64,7 @@ class Auth0Service:
                     "password": password,
                     "name": f"{nombre} {apellido}",
                     "email_verified": True,
+                    "app_metadata": {"rol": "USUARIO_FINAL"},
                 },
             )
 
@@ -103,7 +104,7 @@ class Auth0Service:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        return _extract_sub(resp.json()["access_token"])
+        return resp.json()["access_token"]
 
     async def delete_user(self, auth0_id: str) -> None:
         """Delete user from Auth0. Used as compensating rollback if DB insert fails."""
@@ -114,8 +115,24 @@ class Auth0Service:
                 headers={"Authorization": f"Bearer {mgmt_token}"},
             )
 
+    async def update_user_rol(self, auth0_id: str, rol: str) -> None:
+        """Update app_metadata.rol in Auth0 so next token reflects the new role."""
+        mgmt_token = await self._get_management_token()
+        async with httpx.AsyncClient() as client:
+            resp = await client.patch(
+                f"https://{settings.AUTH0_DOMAIN}/api/v2/users/{auth0_id}",
+                headers={"Authorization": f"Bearer {mgmt_token}"},
+                json={"app_metadata": {"rol": rol}},
+            )
+        if resp.status_code not in (200, 201):
+            logger.error("Auth0 update_user_rol error %s: %s", resp.status_code, resp.text)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"No se pudo actualizar el rol en Auth0: {resp.text}",
+            )
 
-def _extract_sub(token: str) -> str:
+
+def extract_sub(token: str) -> str:
     payload_b64 = token.split(".")[1]
     payload_b64 += "=" * (4 - len(payload_b64) % 4)
     return json.loads(base64.urlsafe_b64decode(payload_b64))["sub"]

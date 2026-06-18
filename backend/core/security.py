@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+import httpx
 from jose import jwt, JWTError
 from core.config import settings
 from fastapi import HTTPException, status
@@ -9,24 +9,28 @@ ROLE_USUARIO_FINAL = "USUARIO_FINAL"
 
 ALL_ROLES = {ROLE_ADMIN, ROLE_FUNCIONARIO, ROLE_USUARIO_FINAL}
 
+ROL_CLAIM = "https://mundial-auth/rol"
 
-def create_access_token(mail: str, role: str) -> str:
-    if role not in ALL_ROLES:
-        raise ValueError(f"Rol inválido: {role}")
-    payload = {
-        "sub": mail,
-        "role": role,
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_EXPIRE_MINUTES),
-    }
-    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+_jwks_cache: dict | None = None
 
 
-def decode_token(token: str) -> dict:
+def _get_jwks() -> dict:
+    global _jwks_cache
+    if _jwks_cache is None:
+        resp = httpx.get(f"https://{settings.AUTH0_DOMAIN}/.well-known/jwks.json", timeout=10)
+        resp.raise_for_status()
+        _jwks_cache = resp.json()
+    return _jwks_cache
+
+
+def decode_auth0_token(token: str) -> dict:
     try:
         return jwt.decode(
             token,
-            settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM],
+            _get_jwks(),
+            algorithms=["RS256"],
+            audience=settings.AUTH0_AUDIENCE,
+            issuer=f"https://{settings.AUTH0_DOMAIN}/",
         )
     except JWTError as e:
         raise HTTPException(
