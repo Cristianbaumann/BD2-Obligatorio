@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 
 
@@ -34,6 +34,8 @@ class EntradaOut(BaseModel):
     evento_id: str
     sector_id: int
     consumido: bool
+    evento_nombre: Optional[str] = None
+    sector_nombre: Optional[str] = None
 
 
 class VentaEstadoUpdate(BaseModel):
@@ -48,3 +50,4 @@ class VentaOut(BaseModel):
     precio: float
     tasa_comision: float
     entradas: List[EntradaOut] = []
+    segundos_restantes: Optional[int] = None
