@@ -155,12 +155,17 @@ def get_evento_disponibilidad(id: str, db=Depends(get_db)):
             es.sector_id,
             s.nombre,
             es.costo,
-            s.capacidad                  AS total,
-            s.capacidad - COUNT(ent.id)  AS disponibles
+            s.capacidad AS total,
+            s.capacidad - COUNT(ent.id) AS disponibles
         FROM EventoSector es
         JOIN Sector s ON s.id = es.sector_id
         LEFT JOIN Entrada ent ON ent.evento_id = es.evento_id
-                              AND ent.sector_id  = es.sector_id
+                              AND ent.sector_id = es.sector_id
+                              AND EXISTS (
+                                  SELECT 1 FROM Venta v
+                                  WHERE v.id = ent.venta_id
+                                    AND NOT (v.estado_id = 1 AND v.fecha < NOW() - INTERVAL 15 MINUTE)
+                              )
         WHERE es.evento_id = %s
         GROUP BY es.sector_id, s.nombre, es.costo, s.capacidad
         """,

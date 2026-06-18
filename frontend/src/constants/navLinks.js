@@ -1,6 +1,7 @@
 export const USER_LINKS = [
   ['Eventos', '/eventos'],
   ['Mis Entradas', '/mis-entradas'],
+  ['Carrito', '/carrito'],
   ['Mi Perfil', '/perfil'],
 ]
 

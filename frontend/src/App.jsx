@@ -12,6 +12,7 @@ import ComprarEntrada from './pages/usuario/ComprarEntrada'
 import MisEntradas from './pages/usuario/MisEntradas'
 import Transferir from './pages/usuario/Transferir'
 import Perfil from './pages/usuario/Perfil'
+import Carrito from './pages/usuario/Carrito'
 
 import FuncionarioDashboard from './pages/funcionario/Dashboard'
 import Scanner from './pages/funcionario/Scanner'
@@ -91,6 +92,11 @@ export default function App() {
         <Route path="/perfil" element={
           <ProtectedRoute allowedRoles={['USUARIO_FINAL']}>
             <Perfil />
+          </ProtectedRoute>
+        } />
+        <Route path="/carrito" element={
+          <ProtectedRoute allowedRoles={['USUARIO_FINAL']}>
+            <Carrito />
           </ProtectedRoute>
         } />
 
