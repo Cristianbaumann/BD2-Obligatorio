@@ -47,17 +47,22 @@ def create_transferencia(body: TransferenciaCreate, user=Depends(get_current_use
     return {"message": "Transferencia solicitada. El destinatario debe aceptarla."}
 
 
-@router.get("/{id}")
-def get_transferencia(id: str):
-    pass
-
-
 @router.get("/mis-transferencias")
 def transferencias_usuario(mail_usuario: str, user=Depends(require_any_role), db=Depends(get_db)):
     db.execute("""
         SELECT t.id AS transferencia_id, t.entrada_id, t.origen_mail, t.destino_mail,
-               t.fecha AS fecha_transferencia, t.estado
+               t.fecha AS fecha_transferencia, t.estado,
+               ev.fecha          AS evento_fecha,
+               el.nombre         AS equipo_local,
+               ev2.nombre        AS equipo_visitante,
+               s.nombre          AS sector_nombre,
+               e.costo
         FROM Transferencia t
+        JOIN Entrada e   ON e.id   = t.entrada_id
+        JOIN Evento  ev  ON ev.id  = e.evento_id
+        JOIN Equipo  el  ON el.id  = ev.equipo_local_id
+        JOIN Equipo  ev2 ON ev2.id = ev.equipo_visitante_id
+        JOIN Sector  s   ON s.id   = e.sector_id
         WHERE (t.origen_mail = %s OR t.destino_mail = %s)
         ORDER BY t.fecha DESC
     """, (mail_usuario, mail_usuario))
@@ -65,6 +70,11 @@ def transferencias_usuario(mail_usuario: str, user=Depends(require_any_role), db
     if not transferencias:
         raise HTTPException(status_code=404, detail="No se encontraron transferencias para este usuario")
     return {"transferencias": transferencias}
+
+
+@router.get("/{id}")
+def get_transferencia(id: str):
+    pass
 
 
 @router.post("/solicitar")

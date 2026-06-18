@@ -46,6 +46,32 @@ asyncio.run(main())
 ### API "Ticketting mundial 2026"
 - **Application Access** tab → "Ticketing Mundial 2026" → User-delegated Access ✓ (toggle verde)
 
+### Action "Inject Role Claim" (Actions → Library → Custom)
+
+Tipo: **Login / Post Login**. Debe estar en el flow "Login" y deployada.
+
+```javascript
+exports.onExecutePostLogin = async (event, api) => {
+  const rol = event.user.app_metadata?.rol;
+  if (rol) {
+    api.accessToken.setCustomClaim('https://mundial-auth/rol', rol);
+  }
+};
+```
+
+Agrega el rol como custom claim en el access token. Sin esto, el backend rechaza todos los tokens con 401.
+
+**Namespace obligatorio:** Auth0 exige URL como prefijo para claims custom (`https://mundial-auth/rol`), de lo contrario los silencia.
+
+### Roles de usuarios
+
+El rol vive en `app_metadata.rol` de cada usuario en Auth0 **y** en `Usuario.rol` de la BD. Ambos deben estar sincronizados.
+
+- Register vía API → siempre crea `USUARIO_FINAL` (automático, el backend lo setea)
+- Promover a ADMIN o FUNCIONARIO → manual:
+  1. Auth0 Dashboard → Users → Edit → App Metadata: `{ "rol": "ADMIN" }`
+  2. BD: `UPDATE Usuario SET rol = 'ADMIN' WHERE mail = '...';`
+
 ### Usuarios creados via Management API
 - Siempre incluir `"email_verified": true` en el body del POST a `/api/v2/users`
 - Sin esto, Auth0 bloquea el login hasta que el usuario verifique el email

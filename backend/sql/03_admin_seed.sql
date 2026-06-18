@@ -67,7 +67,3 @@ VALUES ('admin.canada@ticketing.com', 'Canadá', '2026-01-01');
 
 -- Después de crear el usuario en Auth0, actualizar el auth0_id:
 -- UPDATE Usuario SET auth0_id = 'auth0|xxxx' WHERE mail = 'admin@ticketing.com';
-
-UPDATE Usuario 
-SET auth0_id = 'auth0|xxxx' 
-WHERE mail = 'mail';
