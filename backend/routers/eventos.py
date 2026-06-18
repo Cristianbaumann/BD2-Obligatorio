@@ -324,6 +324,13 @@ def delete_evento(id: str, db=Depends(get_db), admin=Depends(require_admin)):
             detail="El admin no puede borrar eventos fuera de su jurisdicción",
         )
 
+    db.execute("SELECT COUNT(*) AS total FROM Entrada WHERE evento_id = %s", (id,))
+    if db.fetchone()["total"] > 0:
+        raise HTTPException(
+            status_code=409,
+            detail="El evento tiene entradas emitidas y no puede eliminarse",
+        )
+
     db.execute(
         """
         DELETE FROM Evento
