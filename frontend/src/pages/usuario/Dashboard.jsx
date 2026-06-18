@@ -4,7 +4,7 @@ import { Ticket, Calendar, ArrowLeftRight } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 import Layout from '../../components/Layout'
 
-const USER_LINKS = [['Eventos', '/eventos'], ['Mis Entradas', '/mis-entradas'], ['Transferir', '/transferir']]
+const USER_LINKS = [['Eventos', '/eventos'], ['Mis Entradas', '/mis-entradas'], ['Transferir', '/transferir'], ['Mi Perfil', '/perfil']]
 
 const CARDS = [
   { to: '/eventos',      icon: <Calendar size={32} />,       label: 'Ver Eventos',  desc: 'Explorá los partidos disponibles' },

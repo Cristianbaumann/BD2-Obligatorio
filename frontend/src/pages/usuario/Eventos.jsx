@@ -7,8 +7,7 @@ import Layout from '../../components/Layout'
 import MatchCard from '../../components/MatchCard'
 import useAuthStore from '../../store/authStore'
 
-const USER_LINKS = [['Eventos', '/eventos'], ['Mis Entradas', '/mis-entradas']]
-const PUBLIC_LINKS = [['Eventos', '/eventos']]
+import { USER_LINKS, PUBLIC_LINKS } from '../../constants/navLinks'
 
 function FootballLoader() {
   return (

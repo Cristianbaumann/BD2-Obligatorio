@@ -8,7 +8,7 @@ import api from '../../services/api'
 import Layout from '../../components/Layout'
 import useAuthStore from '../../store/authStore'
 
-const USER_LINKS = [['Eventos', '/eventos'], ['Mis Entradas', '/mis-entradas']]
+import { USER_LINKS } from '../../constants/navLinks'
 
 function TransferModal({ modal, onClose, onSuccess }) {
   const [email, setEmail] = useState('')

@@ -9,6 +9,7 @@ import CircularGallery from '../components/CircularGallery'
 import api from '../services/api'
 import useAuthStore from '../store/authStore'
 import useEventosStore from '../store/eventosStore'
+import { USER_LINKS, PUBLIC_LINKS } from '../constants/navLinks'
 
 const WC_HISTORY = [
   {
@@ -343,7 +344,7 @@ export default function Home() {
 
   return (
     <div style={{ background: '#0A0A12', minHeight: '100vh' }}>
-      <Navbar links={token ? [['Eventos', '/eventos'], ['Mis Entradas', '/mis-entradas']] : [['Eventos', '/eventos']]} />
+      <Navbar links={token ? USER_LINKS : PUBLIC_LINKS} />
 
       {/* HERO */}
       <section style={{
