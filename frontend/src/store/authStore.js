@@ -16,15 +16,20 @@ const useAuthStore = create(
       user: null,
       token: null,
       rol: null,
+      estado_verificacion: null,
 
       login(token, userData) {
         const payload = decodeJWT(token)
         const rol = payload?.["https://mundial-auth/rol"] || userData?.role || null
-        set({ token, user: userData || payload, rol })
+        set({ token, user: userData || payload, rol, estado_verificacion: userData?.estado_verificacion || null })
+      },
+
+      setVerificado() {
+        set({ estado_verificacion: 'VERIFICADO' })
       },
 
       logout() {
-        set({ token: null, user: null, rol: null })
+        set({ token: null, user: null, rol: null, estado_verificacion: null })
       },
 
       isAuthenticated() {
@@ -38,7 +43,7 @@ const useAuthStore = create(
     {
       name: 'mundial-auth',
       storage: createJSONStorage(() => sessionStorage),
-      partialize: (state) => ({ token: state.token, user: state.user, rol: state.rol }),
+      partialize: (state) => ({ token: state.token, user: state.user, rol: state.rol, estado_verificacion: state.estado_verificacion }),
     }
   )
 )

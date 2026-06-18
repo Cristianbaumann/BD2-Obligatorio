@@ -54,7 +54,7 @@ async def register(body: RegisterRequest, cursor=Depends(get_db)):
         )
 
     auth0_token = await auth0_service.authenticate_user(body.email, body.password)
-    return AuthResponse(access_token=auth0_token, role=ROLE_USUARIO_FINAL, mail=body.email)
+    return AuthResponse(access_token=auth0_token, role=ROLE_USUARIO_FINAL, mail=body.email, estado_verificacion="PENDIENTE")
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -63,7 +63,12 @@ async def login(body: LoginRequest, cursor=Depends(get_db)):
     auth0_id = extract_sub(auth0_token)
 
     cursor.execute(
-        "SELECT mail, rol FROM Usuario WHERE auth0_id = %s",
+        """
+        SELECT u.mail, u.rol, uf.estado_verificacion
+        FROM Usuario u
+        LEFT JOIN UsuarioFinal uf ON uf.usuario_mail = u.mail
+        WHERE u.auth0_id = %s
+        """,
         (auth0_id,),
     )
     user = cursor.fetchone()
@@ -73,7 +78,12 @@ async def login(body: LoginRequest, cursor=Depends(get_db)):
             detail="Usuario no encontrado en el sistema",
         )
 
-    return AuthResponse(access_token=auth0_token, role=user["rol"], mail=user["mail"])
+    return AuthResponse(
+        access_token=auth0_token,
+        role=user["rol"],
+        mail=user["mail"],
+        estado_verificacion=user.get("estado_verificacion"),
+    )
 
 
 @router.get("/me", response_model=UserResponse)

@@ -101,8 +101,11 @@ def update_me(
 def verificar_usuario(
     mail: str,
     cursor=Depends(get_db),
-    _=Depends(require_admin),
+    user=Depends(get_current_user),
 ):
+    if user["rol"] != "ADMIN" and user["mail"] != mail:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sin permiso")
+
     cursor.execute(
         "SELECT usuario_mail, estado_verificacion FROM UsuarioFinal WHERE usuario_mail = %s",
         (mail,),

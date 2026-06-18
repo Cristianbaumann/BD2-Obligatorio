@@ -28,6 +28,7 @@ class AuthResponse(BaseModel):
     token_type: str = "bearer"
     role: str
     mail: str
+    estado_verificacion: Optional[str] = None
 
 
 class UserResponse(BaseModel):
