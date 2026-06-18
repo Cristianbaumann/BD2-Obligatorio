@@ -41,7 +41,6 @@ def get_qr(entrada_id: str, user=Depends(require_any_role), db=Depends(get_db)):
             "INSERT INTO Qr (id, entrada_id, codigo_hash, activo) VALUES (UUID(), %s, %s, TRUE)",
             (entrada_id, codigo_hash)
         )
-        db.commit()
     else:
         codigo_hash = qr["codigo_hash"]
 
