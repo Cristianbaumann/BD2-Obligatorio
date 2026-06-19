@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Trophy, LogOut, LogIn, ArrowLeft, Menu, X, Search, MapPin, Calendar } from 'lucide-react'
 import useAuthStore from '../store/authStore'
 import useEventosStore from '../store/eventosStore'
+import api from '../services/api'
 
 function NavLink({ to, label, onClick, showDot = false }) {
   const { pathname } = useLocation()
@@ -55,8 +56,19 @@ export default function Navbar({ brand = 'MUNDIAL 2026', links = [], backTo = nu
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [searchVal, setSearchVal] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
+  const [pendingTransfers, setPendingTransfers] = useState(0)
   const searchWrapRef = useRef(null)
   const eventos = useEventosStore(s => s.eventos)
+
+  useEffect(() => {
+    if (rol !== 'USUARIO_FINAL' || !user?.mail) { setPendingTransfers(0); return }
+    api.get(`/transferencias/mis-transferencias?mail_usuario=${encodeURIComponent(user.mail)}`)
+      .then(r => {
+        const all = r.data?.transferencias || []
+        setPendingTransfers(all.filter(t => t.estado === 'PENDIENTE' && t.destino_mail === user.mail).length)
+      })
+      .catch(() => {})
+  }, [pathname, rol, user?.mail])
 
   const searchResults = searchVal.trim()
     ? eventos.filter(e => {
@@ -192,7 +204,10 @@ export default function Navbar({ brand = 'MUNDIAL 2026', links = [], backTo = nu
             {links.map(([label, to]) => (
               <NavLink
                 key={to} to={to} label={label}
-                showDot={to === '/perfil' && rol === 'USUARIO_FINAL' && estado_verificacion !== 'VERIFICADO'}
+                showDot={
+                  (to === '/perfil' && rol === 'USUARIO_FINAL' && estado_verificacion !== 'VERIFICADO') ||
+                  (to === '/mis-entradas' && pendingTransfers > 0)
+                }
               />
             ))}
             <div style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.1)' }} />
@@ -455,7 +470,8 @@ export default function Navbar({ brand = 'MUNDIAL 2026', links = [], backTo = nu
                 >
                   {pathname === to && <span style={{ width: '3px', height: '20px', background: '#C9A227', borderRadius: '2px', display: 'inline-block' }} />}
                   {label}
-                  {to === '/perfil' && rol === 'USUARIO_FINAL' && estado_verificacion !== 'VERIFICADO' && (
+                  {((to === '/perfil' && rol === 'USUARIO_FINAL' && estado_verificacion !== 'VERIFICADO') ||
+                    (to === '/mis-entradas' && pendingTransfers > 0)) && (
                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444', display: 'inline-block', marginLeft: '2px' }} />
                   )}
                 </Link>

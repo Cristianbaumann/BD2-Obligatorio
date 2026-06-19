@@ -235,7 +235,14 @@ function TransferModal({ modal, onClose, onSuccess }) {
 
 function EntradaRow({ entrada, onTransfer }) {
   const [open, setOpen] = useState(false)
-  const isActiva = !entrada.consumido
+  const cancelado = !!entrada.evento?.cancelado
+  const isActiva = !entrada.consumido && !cancelado
+
+  const badgeStyle = cancelado
+    ? { bg: 'rgba(249,115,22,0.12)', color: '#f97316', border: 'rgba(249,115,22,0.3)', label: 'BLOQUEADA' }
+    : entrada.consumido
+      ? { bg: 'rgba(239,68,68,0.12)', color: '#ef4444', border: 'rgba(239,68,68,0.3)', label: 'CONSUMIDA' }
+      : { bg: 'rgba(34,197,94,0.12)', color: '#22c55e', border: 'rgba(34,197,94,0.3)', label: 'ACTIVA' }
 
   return (
     <div style={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}>
@@ -282,11 +289,11 @@ function EntradaRow({ entrada, onTransfer }) {
           )}
           <span style={{
             fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', padding: '2px 8px', borderRadius: '20px',
-            background: isActiva ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
-            color: isActiva ? '#22c55e' : '#ef4444',
-            border: `1px solid ${isActiva ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+            background: badgeStyle.bg,
+            color: badgeStyle.color,
+            border: `1px solid ${badgeStyle.border}`,
           }}>
-            {entrada.consumido ? 'CONSUMIDA' : 'ACTIVA'}
+            {badgeStyle.label}
           </span>
           {isActiva && (open
             ? <ChevronUp size={13} color="rgba(255,255,255,0.25)" />

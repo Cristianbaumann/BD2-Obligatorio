@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence, useAnimation } from 'framer-motion'
-import { Eye, EyeOff, Plus, X } from 'lucide-react'
+import { Eye, EyeOff, Plus, X, ChevronDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 import useAuthStore from '../store/authStore'
 import api from '../services/api'
 import TunnelAnimation from '../components/TunnelAnimation'
+import { COUNTRY_CODES } from '../constants/countryCodes'
 
 const FIELD_LABELS = {
   email: 'Email', password: 'Contraseña',
@@ -259,8 +260,88 @@ function AuthSelect({ label, value, onChange, options }) {
   )
 }
 
+// ─── CountryPicker ────────────────────────────────────────────────────────────
+function CountryPicker({ value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const ref = useRef(null)
+
+  const filtered = COUNTRY_CODES.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    c.dialCode.includes(search)
+  )
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  return (
+    <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setSearch('') }}
+        style={{
+          height: '48px', padding: '0 10px',
+          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,162,39,0.18)',
+          borderRadius: '12px', color: '#C9A227',
+          fontSize: '13px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600,
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+          whiteSpace: 'nowrap', minWidth: '70px',
+        }}
+      >
+        {value} <ChevronDown size={12} style={{ opacity: 0.6, flexShrink: 0 }} />
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100,
+          background: '#0E1A2E', border: '1px solid rgba(201,162,39,0.25)',
+          borderRadius: '10px', minWidth: '220px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          overflow: 'hidden',
+        }}>
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <input
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar país..."
+              style={{
+                width: '100%', padding: '6px 10px', boxSizing: 'border-box',
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(201,162,39,0.2)',
+                borderRadius: '7px', color: '#fff', fontSize: '12px', outline: 'none',
+              }}
+            />
+          </div>
+          <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+            {filtered.map(c => (
+              <button
+                key={c.name + c.dialCode}
+                type="button"
+                onClick={() => { onChange(c.dialCode); setOpen(false) }}
+                style={{
+                  width: '100%', padding: '9px 14px', textAlign: 'left',
+                  background: value === c.dialCode ? 'rgba(201,162,39,0.1)' : 'none',
+                  border: 'none', cursor: 'pointer', color: '#fff', fontSize: '13px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}
+              >
+                <span>{c.name}</span>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', color: '#C9A227', opacity: 0.8 }}>{c.dialCode}</span>
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <p style={{ padding: '12px 14px', color: 'rgba(255,255,255,0.3)', fontSize: '12px', margin: 0 }}>Sin resultados</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── RegisterForm ─────────────────────────────────────────────────────────────
-function RegisterForm({ form, setField, onSubmit, setTelefono, addTelefono, removeTelefono }) {
+function RegisterForm({ form, setField, onSubmit, setTelefono, setTelefonoCode, addTelefono, removeTelefono }) {
   const sectionLabel = (text) => (
     <p style={{ fontSize: '9px', color: 'rgba(201,162,39,0.5)', letterSpacing: '3px', textTransform: 'uppercase', margin: '4px 0 0' }}>{text}</p>
   )
@@ -308,14 +389,15 @@ function RegisterForm({ form, setField, onSubmit, setTelefono, addTelefono, remo
             <AuthInput label="Número" placeholder="1234" value={form.dir_numero} onChange={setField('dir_numero')} />
           </div>
 
-          {sectionLabel('Teléfonos (opcional)')}
+          {sectionLabel('Teléfono')}
           {form.telefonos.map((tel, idx) => (
-            <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: idx === 0 ? 'flex-end' : 'center' }}>
+              <CountryPicker value={form.telefonoCodes[idx] || '+598'} onChange={code => setTelefonoCode(idx, code)} />
               <div style={{ flex: 1 }}>
                 <AuthInput
-                  label={idx === 0 ? 'Teléfono' : undefined}
+                  label={idx === 0 ? 'Número' : undefined}
                   type="tel"
-                  placeholder="+54 9 11 1234-5678"
+                  placeholder="099 123 456"
                   value={tel}
                   onChange={e => setTelefono(idx, e.target.value)}
                 />
@@ -325,7 +407,6 @@ function RegisterForm({ form, setField, onSubmit, setTelefono, addTelefono, remo
                   type="button"
                   onClick={() => removeTelefono(idx)}
                   style={{
-                    marginTop: idx === 0 ? '26px' : '0',
                     flexShrink: 0, width: '32px', height: '32px', borderRadius: '8px',
                     background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.25)',
                     color: 'rgba(255,80,80,0.7)', cursor: 'pointer', display: 'flex',
@@ -378,6 +459,7 @@ export default function AuthPage({ initialMode = 'login' }) {
     doc_pais: '', doc_tipo: 'CI', doc_numero: '',
     dir_pais: '', dir_localidad: '', dir_calle: '', dir_numero: '',
     telefonos: [''],
+    telefonoCodes: ['+598'],
   })
 
   // Three independent controls:
@@ -394,9 +476,16 @@ export default function AuthPage({ initialMode = 'login' }) {
   const setTelefono = (idx, val) => setRegisterForm(f => {
     const t = [...f.telefonos]; t[idx] = val; return { ...f, telefonos: t }
   })
-  const addTelefono = () => setRegisterForm(f => ({ ...f, telefonos: [...f.telefonos, ''] }))
+  const setTelefonoCode = (idx, code) => setRegisterForm(f => {
+    const c = [...f.telefonoCodes]; c[idx] = code; return { ...f, telefonoCodes: c }
+  })
+  const addTelefono = () => setRegisterForm(f => ({
+    ...f, telefonos: [...f.telefonos, ''], telefonoCodes: [...f.telefonoCodes, '+598']
+  }))
   const removeTelefono = (idx) => setRegisterForm(f => ({
-    ...f, telefonos: f.telefonos.filter((_, i) => i !== idx)
+    ...f,
+    telefonos: f.telefonos.filter((_, i) => i !== idx),
+    telefonoCodes: f.telefonoCodes.filter((_, i) => i !== idx),
   }))
 
   async function switchMode(target) {
@@ -442,7 +531,10 @@ export default function AuthPage({ initialMode = 'login' }) {
   async function handleRegister(e) {
     e.preventDefault()
     try {
-      const payload = { ...registerForm, telefonos: registerForm.telefonos.filter(t => t.trim() !== '') }
+      const telefonos = registerForm.telefonos
+        .map((num, i) => num.trim() ? registerForm.telefonoCodes[i] + num.trim() : null)
+        .filter(Boolean)
+      const payload = { ...registerForm, telefonos }
       const res = await api.post('/auth/register', payload)
       const { access_token, ...userData } = res.data
       login(access_token, userData)
@@ -483,7 +575,8 @@ export default function AuthPage({ initialMode = 'login' }) {
         >
           <RegisterForm
             form={registerForm} setField={setR} onSubmit={handleRegister}
-            setTelefono={setTelefono} addTelefono={addTelefono} removeTelefono={removeTelefono}
+            setTelefono={setTelefono} setTelefonoCode={setTelefonoCode}
+            addTelefono={addTelefono} removeTelefono={removeTelefono}
           />
         </motion.div>
 

@@ -36,18 +36,19 @@ def create_dispositivo(
     if db.fetchone() is None:
         raise HTTPException(status_code=404, detail="Funcionario no encontrado")
 
+    db.execute("SELECT @new_id := UUID()")
+    new_id = db.fetchone()["@new_id := UUID()"]
     try:
         db.execute(
-            "INSERT INTO Dispositivo (id, funcionario_mail, activo) VALUES (UUID(), %s, TRUE)",
-            (body.funcionario_mail,)
+            "INSERT INTO Dispositivo (id, funcionario_mail, activo) VALUES (%s, %s, TRUE)",
+            (new_id, body.funcionario_mail,)
         )
-        db.commit()
-    except IntegrityError:              
+    except IntegrityError:
         raise HTTPException(status_code=409, detail="El dispositivo ya está registrado")
 
     db.execute(
-        "SELECT id, funcionario_mail, activo FROM Dispositivo WHERE funcionario_mail = %s ORDER BY rowid DESC LIMIT 1",
-        (body.funcionario_mail,)
+        "SELECT id, funcionario_mail, activo FROM Dispositivo WHERE id = %s",
+        (new_id,)
     )
     return db.fetchone()
 
@@ -63,7 +64,6 @@ def delete_dispositivo(
         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
 
     db.execute("DELETE FROM Dispositivo WHERE id = %s", (id,))
-    db.commit()
     return {"detail": "Dispositivo eliminado"}
 
 

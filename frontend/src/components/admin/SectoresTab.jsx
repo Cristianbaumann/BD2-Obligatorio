@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, Trash2, Users } from 'lucide-react'
+import { Plus, Trash2, Users, Pencil, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import StadiumBowl from './StadiumBowl'
@@ -17,6 +17,9 @@ export default function SectoresTab({ estadioNombre, detail, onSectorChange }) {
   const [form, setForm] = useState({ nombre: '', capacidad: '' })
   const [creating, setCreating] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [editingCap, setEditingCap] = useState(false)
+  const [editCapVal, setEditCapVal] = useState('')
+  const [savingCap, setSavingCap] = useState(false)
 
   const sectores = detail?.sectores ?? []
   const selected = useMemo(() => sectores.find(s => s.id === selectedId) ?? null, [sectores, selectedId])
@@ -57,6 +60,27 @@ export default function SectoresTab({ estadioNombre, detail, onSectorChange }) {
     }
   }
 
+  function startEditCap() {
+    setEditCapVal(String(selected.capacidad))
+    setEditingCap(true)
+  }
+
+  async function handleSaveCap() {
+    const cap = Number(editCapVal)
+    if (!cap || cap <= 0) { toast.error('Capacidad inválida'); return }
+    setSavingCap(true)
+    try {
+      await api.put(`/estadios/${encodeURIComponent(estadioNombre)}/sectores/${selected.id}`, { capacidad: cap })
+      toast.success('Capacidad actualizada')
+      setEditingCap(false)
+      onSectorChange()
+    } catch (err) {
+      toast.error(extractDetail(err))
+    } finally {
+      setSavingCap(false)
+    }
+  }
+
   return (
     <div>
       {/* Bowl + side panel */}
@@ -75,12 +99,53 @@ export default function SectoresTab({ estadioNombre, detail, onSectorChange }) {
               <p style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '20px', color: '#C9A227', letterSpacing: '1px', marginBottom: '10px' }}>
                 {selected.nombre}
               </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
                 <Users size={13} color="#C9A227" />
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '14px', color: '#C9A227', fontWeight: 700 }}>
-                  {(selected.capacidad || 0).toLocaleString()}
-                </span>
+                {editingCap ? (
+                  <input
+                    type="number" min="1" value={editCapVal}
+                    onChange={e => setEditCapVal(e.target.value)}
+                    autoFocus
+                    style={{
+                      width: '70px', padding: '3px 6px',
+                      background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(201,162,39,0.4)',
+                      borderRadius: '4px', color: '#C9A227', fontFamily: 'JetBrains Mono, monospace',
+                      fontSize: '13px', outline: 'none',
+                    }}
+                  />
+                ) : (
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '14px', color: '#C9A227', fontWeight: 700 }}>
+                    {(selected.capacidad || 0).toLocaleString()}
+                  </span>
+                )}
                 <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>asientos</span>
+              </div>
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                {editingCap ? (
+                  <button
+                    onClick={handleSaveCap} disabled={savingCap}
+                    style={{
+                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+                      background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)',
+                      color: '#22c55e', borderRadius: '6px', padding: '7px',
+                      fontSize: '12px', fontWeight: 600, cursor: savingCap ? 'not-allowed' : 'pointer', opacity: savingCap ? 0.6 : 1,
+                    }}
+                  >
+                    <Check size={12} /> {savingCap ? '...' : 'Guardar'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={startEditCap}
+                    style={{
+                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+                      background: 'rgba(201,162,39,0.08)', border: '1px solid rgba(201,162,39,0.25)',
+                      color: '#C9A227', borderRadius: '6px', padding: '7px',
+                      fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    <Pencil size={12} /> Editar
+                  </button>
+                )}
               </div>
               <button
                 onClick={handleDelete}

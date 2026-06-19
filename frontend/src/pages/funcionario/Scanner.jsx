@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, CheckCircle, XCircle, Smartphone } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, Smartphone, KeyRound } from 'lucide-react'
 import { Html5Qrcode } from 'html5-qrcode'
 import api from '../../services/api'
 
@@ -13,8 +13,30 @@ export default function Scanner() {
   const [dispositivos, setDispositivos] = useState([])
   const [selectedDevice, setSelectedDevice] = useState(null)
   const [loadingDevices, setLoadingDevices] = useState(true)
+  const [manualHash, setManualHash] = useState('')
+  const [submittingManual, setSubmittingManual] = useState(false)
   const instanceRef = useRef(null)
   const processingRef = useRef(false)
+
+  async function handleManualSubmit(e) {
+    e.preventDefault()
+    const hash = manualHash.trim()
+    if (!hash || !selectedDevice) return
+    setSubmittingManual(true)
+    try {
+      const res = await api.post('/validaciones/', { codigo_hash: hash, dispositivo_id: selectedDevice })
+      setResult({ ...res.data, hash })
+      setState(STATES.VALID)
+    } catch (err) {
+      const detail = err.response?.data?.detail || 'Entrada inválida'
+      setResult({ error: detail, hash })
+      setState(STATES.INVALID)
+    } finally {
+      setSubmittingManual(false)
+      setManualHash('')
+      setTimeout(() => { setState(STATES.SCANNING); setResult(null) }, 2500)
+    }
+  }
 
   useEffect(() => {
     api.get('/dispositivos/mis-dispositivos')
@@ -145,6 +167,41 @@ export default function Scanner() {
                     {selectedDevice.slice(0, 8).toUpperCase()}
                   </span>
                 </div>
+
+                {/* Manual hash input */}
+                <form onSubmit={handleManualSubmit} style={{ width: '100%', maxWidth: '420px', marginTop: '8px' }}>
+                  <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <KeyRound size={11} /> Código manual
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={manualHash}
+                      onChange={e => setManualHash(e.target.value)}
+                      placeholder="Pegar hash del QR..."
+                      style={{
+                        flex: 1, padding: '9px 12px',
+                        background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,162,39,0.2)',
+                        borderRadius: '8px', color: '#fff', fontSize: '12px',
+                        fontFamily: 'JetBrains Mono, monospace', outline: 'none',
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!manualHash.trim() || submittingManual}
+                      style={{
+                        padding: '9px 16px',
+                        background: manualHash.trim() ? 'rgba(201,162,39,0.15)' : 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(201,162,39,0.3)',
+                        borderRadius: '8px', color: '#C9A227', fontSize: '12px', fontWeight: 600,
+                        cursor: manualHash.trim() && !submittingManual ? 'pointer' : 'not-allowed',
+                        transition: 'background 0.15s',
+                      }}
+                    >
+                      {submittingManual ? '...' : 'Validar'}
+                    </button>
+                  </div>
+                </form>
               </>
             )}
           </>
