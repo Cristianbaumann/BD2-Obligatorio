@@ -22,6 +22,8 @@ import AdminEventos from './pages/admin/Eventos'
 import AdminEstadios from './pages/admin/Estadios'
 import AdminFuncionarios from './pages/admin/Funcionarios'
 import AdminConfiguracion from './pages/admin/Configuracion'
+import AdminDispositivos from './pages/admin/Dispositivos'
+import AdminHistorial from './pages/admin/HistorialTransferencias'
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { rol } = useAuthStore()
@@ -134,6 +136,16 @@ export default function App() {
         <Route path="/admin/configuracion" element={
           <ProtectedRoute allowedRoles={['ADMIN']}>
             <AdminConfiguracion />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/dispositivos" element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <AdminDispositivos />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/historial" element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <AdminHistorial />
           </ProtectedRoute>
         } />
 

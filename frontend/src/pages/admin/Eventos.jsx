@@ -4,8 +4,7 @@ import { Plus, X, MapPin, CalendarDays, Pencil, ChevronUp, Trash2 } from 'lucide
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
-
-const ADMIN_LINKS = [['Eventos', '/admin/eventos'], ['Estadios', '/admin/estadios'], ['Funcionarios', '/admin/funcionarios'], ['Configuración', '/admin/configuracion']]
+import { ADMIN_LINKS } from '../../constants/navLinks'
 const EMPTY_FORM = { equipo_local_id: '', equipo_visitante_id: '', fecha: '', estadio_nombre: '' }
 
 function extractDetail(err, fallback = 'Error') {

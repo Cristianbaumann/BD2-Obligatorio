@@ -4,13 +4,7 @@ import { Settings, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
-
-const ADMIN_LINKS = [
-  ['Eventos', '/admin/eventos'],
-  ['Estadios', '/admin/estadios'],
-  ['Funcionarios', '/admin/funcionarios'],
-  ['Configuración', '/admin/configuracion'],
-]
+import { ADMIN_LINKS } from '../../constants/navLinks'
 
 function extractDetail(err, fallback = 'Error') {
   const d = err?.response?.data?.detail
