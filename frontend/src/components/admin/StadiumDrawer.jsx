@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { X } from 'lucide-react'
+import { X, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import DatosTab from './DatosTab'
@@ -10,6 +10,7 @@ export default function StadiumDrawer({ estadio, onClose, onUpdated }) {
   const [activeTab, setActiveTab] = useState('datos')
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchDetail = () => {
     setLoading(true)
@@ -20,6 +21,22 @@ export default function StadiumDrawer({ estadio, onClose, onUpdated }) {
   }
 
   useEffect(() => { fetchDetail() }, [estadio.nombre])
+
+  async function handleDeleteEstadio() {
+    if (!window.confirm(`¿Eliminar el estadio "${estadio.nombre}"? Esta acción no se puede deshacer.`)) return
+    setDeleting(true)
+    try {
+      await api.delete(`/estadios/${encodeURIComponent(estadio.nombre)}`)
+      toast.success('Estadio eliminado')
+      onUpdated(null)
+      onClose()
+    } catch (err) {
+      const d = err.response?.data?.detail
+      toast.error(typeof d === 'string' ? d : 'Error al eliminar estadio')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const TABS = [
     { id: 'datos', label: 'Datos' },
@@ -71,12 +88,27 @@ export default function StadiumDrawer({ estadio, onClose, onUpdated }) {
               {estadio.dir_localidad}, {estadio.dir_pais}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', padding: '4px', marginTop: '2px' }}
-          >
-            <X size={20} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={handleDeleteEstadio}
+              disabled={deleting}
+              title="Eliminar estadio"
+              style={{
+                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
+                color: '#ef4444', borderRadius: '6px', padding: '6px 12px',
+                cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.5 : 1,
+                display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 600,
+              }}
+            >
+              <Trash2 size={13} /> {deleting ? '...' : 'Eliminar'}
+            </button>
+            <button
+              onClick={onClose}
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', padding: '4px', marginTop: '2px' }}
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}

@@ -128,6 +128,11 @@ export default function AdminEstadios() {
             estadio={selectedEstadio}
             onClose={() => setSelectedEstadio(null)}
             onUpdated={(updated) => {
+              if (updated === null) {
+                setEstadios(prev => prev.filter(e => e.nombre !== selectedEstadio.nombre))
+                setSelectedEstadio(null)
+                return
+              }
               setEstadios(prev => prev.map(e =>
                 e.nombre === selectedEstadio.nombre ? { ...e, ...updated } : e
               ))

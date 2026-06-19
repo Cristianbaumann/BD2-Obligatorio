@@ -1,12 +1,17 @@
+import unicodedata
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from mysql.connector import IntegrityError
-import traceback
 
 from dependencies.auth import require_admin
 from database import get_db
 from schemas.evento import EventoCreate, EventoOut, EventoSectorItem, EventoSectorOut, EventoRichOut, SectorDisponibilidadOut
 
 router = APIRouter(prefix="/eventos", tags=["eventos"])
+
+
+def _norm(s: str) -> str:
+    return unicodedata.normalize("NFD", s).encode("ascii", "ignore").decode().lower()
 
 
 def _get_admin_pais_sede(db, mail: str) -> str:
@@ -76,7 +81,7 @@ def create_evento(
 ):
     """Crear un nuevo evento con validaciones de admin y jurisdicción."""
     pais_sede = _get_admin_pais_sede(db, admin["mail"])
-    if pais_sede != evento.estadio_pais:
+    if _norm(pais_sede) != _norm(evento.estadio_pais):
         raise HTTPException(
             status_code=403,
             detail="El admin solo puede crear eventos en estadios de su jurisdicción",
@@ -248,7 +253,7 @@ def update_evento(
     if not evento_actual:
         raise HTTPException(status_code=404, detail="Evento no encontrado")
 
-    if evento_actual["estadio_pais"] != pais_sede or evento.estadio_pais != pais_sede:
+    if _norm(evento_actual["estadio_pais"]) != _norm(pais_sede) or _norm(evento.estadio_pais) != _norm(pais_sede):
         raise HTTPException(
             status_code=403,
             detail="El admin no puede modificar eventos fuera de su jurisdicción",
@@ -325,7 +330,7 @@ def delete_evento(id: str, db=Depends(get_db), admin=Depends(require_admin)):
     if not evento:
         raise HTTPException(status_code=404, detail="Evento no encontrado")
 
-    if evento["estadio_pais"] != pais_sede:
+    if _norm(evento["estadio_pais"]) != _norm(pais_sede):
         raise HTTPException(
             status_code=403,
             detail="El admin no puede borrar eventos fuera de su jurisdicción",
@@ -383,7 +388,7 @@ def add_evento_sectores(
     if not evento:
         raise HTTPException(status_code=404, detail="Evento no encontrado")
 
-    if evento["estadio_pais"] != pais_sede:
+    if _norm(evento["estadio_pais"]) != _norm(pais_sede):
         raise HTTPException(
             status_code=403,
             detail="El admin no puede asociar sectores a eventos fuera de su jurisdicción",
@@ -458,7 +463,7 @@ def remove_evento_sector(
     if not evento:
         raise HTTPException(status_code=404, detail="Evento no encontrado")
 
-    if evento["estadio_pais"] != pais_sede:
+    if _norm(evento["estadio_pais"]) != _norm(pais_sede):
         raise HTTPException(
             status_code=403,
             detail="El admin no puede modificar eventos fuera de su jurisdicción",
@@ -501,7 +506,7 @@ def cancelar_evento(id: str, db=Depends(get_db), admin=Depends(require_admin)):
     evento = db.fetchone()
     if not evento:
         raise HTTPException(status_code=404, detail="Evento no encontrado")
-    if evento["estadio_pais"] != pais_sede:
+    if _norm(evento["estadio_pais"]) != _norm(pais_sede):
         raise HTTPException(status_code=403, detail="El admin no puede cancelar eventos fuera de su jurisdicción")
     if evento["cancelado"]:
         raise HTTPException(status_code=409, detail="El evento ya está cancelado")
@@ -511,7 +516,7 @@ def cancelar_evento(id: str, db=Depends(get_db), admin=Depends(require_admin)):
     # Reembolsar a cada usuario: costo de sus entradas * (1 + tasa_comision)
     db.execute(
         """
-        SELECT v.usuario_mail,
+        SELECT ent.titular_mail,
                SUM(ent.costo * (1 + v.tasa_comision)) AS reembolso
         FROM Entrada ent
         JOIN Venta v ON v.id = ent.venta_id
@@ -519,7 +524,7 @@ def cancelar_evento(id: str, db=Depends(get_db), admin=Depends(require_admin)):
           AND v.estado_id IN (
               SELECT id FROM Estado WHERE descripcion IN ('PAGA', 'CONFIRMADA')
           )
-        GROUP BY v.usuario_mail
+        GROUP BY ent.titular_mail
         """,
         (id,),
     )
@@ -529,7 +534,7 @@ def cancelar_evento(id: str, db=Depends(get_db), admin=Depends(require_admin)):
     for row in afectados:
         db.execute(
             "UPDATE UsuarioFinal SET saldo = saldo + %s WHERE usuario_mail = %s",
-            (row["reembolso"], row["usuario_mail"]),
+            (row["reembolso"], row["titular_mail"]),
         )
         total_reembolsado += float(row["reembolso"])
 

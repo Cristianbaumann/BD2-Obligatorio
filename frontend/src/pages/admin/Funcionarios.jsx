@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, UserCheck, User, Trash2 } from 'lucide-react'
+import { X, UserCheck, User, Trash2, ArrowUpCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
@@ -27,6 +27,17 @@ export default function AdminFuncionarios() {
   const [submitting, setSubmitting] = useState(false)
   const [eliminando, setEliminando] = useState(null)
 
+  // Promover usuario
+  const [showPromover, setShowPromover] = useState(false)
+  const [usuarios, setUsuarios] = useState([])
+  const [promoverMail, setPromoverMail] = useState('')
+  const [promoviendo, setPromoviendo] = useState(false)
+
+  async function loadFuncionarios() {
+    const r = await api.get('/usuarios/funcionarios')
+    setFuncionarios(r.data)
+  }
+
   useEffect(() => {
     Promise.all([
       api.get('/usuarios/funcionarios'),
@@ -36,6 +47,33 @@ export default function AdminFuncionarios() {
       setEventos(ev.data)
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
+
+  async function openPromover() {
+    setShowPromover(true)
+    setPromoverMail('')
+    try {
+      const r = await api.get('/usuarios?rol=USUARIO_FINAL')
+      setUsuarios(r.data)
+    } catch {
+      toast.error('Error al cargar usuarios')
+    }
+  }
+
+  async function handlePromover(e) {
+    e.preventDefault()
+    if (!promoverMail) return toast.error('Seleccioná un usuario')
+    setPromoviendo(true)
+    try {
+      await api.patch(`/usuarios/${encodeURIComponent(promoverMail)}/promover-funcionario`)
+      toast.success('Usuario promovido a Funcionario')
+      setShowPromover(false)
+      await loadFuncionarios()
+    } catch (err) {
+      toast.error(extractDetail(err, 'Error al promover'))
+    } finally {
+      setPromoviendo(false)
+    }
+  }
 
   async function onEventoChange(evento_id) {
     setForm(p => ({ ...p, evento_id, sector_id: '' }))
@@ -64,7 +102,6 @@ export default function AdminFuncionarios() {
       })
       toast.success('Funcionario asignado')
       setForm(p => ({ ...p, funcionario_mail: '', sector_id: '' }))
-      // Refresh asignaciones
       const r = await api.get(`/asignaciones?evento_id=${form.evento_id}`)
       setAsignaciones(r.data)
     } catch (err) {
@@ -96,11 +133,75 @@ export default function AdminFuncionarios() {
           <h1 className="gold-glow-text" style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '48px', color: '#C9A227' }}>
             Funcionarios ({funcionarios.length})
           </h1>
-          <button onClick={() => setShowAssign(s => !s)} className="btn-gold">
-            {showAssign ? <X size={16} /> : <UserCheck size={16} />}
-            {showAssign ? 'Cerrar' : 'Asignar sector'}
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={openPromover} className="btn-gold" style={{ background: 'rgba(34,197,94,0.1)', borderColor: 'rgba(34,197,94,0.4)', color: '#22c55e' }}>
+              <ArrowUpCircle size={16} />
+              Promover usuario
+            </button>
+            <button onClick={() => setShowAssign(s => !s)} className="btn-gold">
+              {showAssign ? <X size={16} /> : <UserCheck size={16} />}
+              {showAssign ? 'Cerrar' : 'Asignar sector'}
+            </button>
+          </div>
         </div>
+
+        {/* Modal promover */}
+        <AnimatePresence>
+          {showPromover && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              style={{
+                position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+              }}
+              onClick={e => { if (e.target === e.currentTarget) setShowPromover(false) }}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                className="glass-card"
+                style={{ padding: '32px', width: '480px', maxWidth: '90vw' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                  <h3 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '24px', color: '#C9A227' }}>
+                    Promover a Funcionario
+                  </h3>
+                  <button onClick={() => setShowPromover(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)' }}>
+                    <X size={20} />
+                  </button>
+                </div>
+                <form onSubmit={handlePromover} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginBottom: '6px', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                      Usuario
+                    </label>
+                    <select
+                      value={promoverMail}
+                      onChange={e => setPromoverMail(e.target.value)}
+                      required
+                      className="form-input"
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <option value="">Seleccioná un usuario...</option>
+                      {usuarios.map(u => (
+                        <option key={u.mail} value={u.mail}>
+                          {u.nombre} {u.apellido} — {u.mail}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={promoviendo}
+                    className="btn-gold"
+                    style={{ justifyContent: 'center', padding: '13px', fontSize: '16px', opacity: promoviendo ? 0.6 : 1 }}
+                  >
+                    {promoviendo ? 'Promoviendo...' : 'Confirmar Promoción'}
+                  </button>
+                </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {showAssign && (
@@ -217,9 +318,16 @@ export default function AdminFuncionarios() {
                     <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>{f.mail || f.email}</p>
                   </div>
                 </div>
-                <span style={{ fontSize: '11px', padding: '3px 10px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.3)' }}>
-                  FUNCIONARIO
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {f.numero_legajo && (
+                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+                      Legajo: {f.numero_legajo}
+                    </span>
+                  )}
+                  <span style={{ fontSize: '11px', padding: '3px 10px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.3)' }}>
+                    FUNCIONARIO
+                  </span>
+                </div>
               </motion.div>
             ))}
           </div>

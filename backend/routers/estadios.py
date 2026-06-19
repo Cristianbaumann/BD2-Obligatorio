@@ -355,6 +355,41 @@ def update_estadio(
     return cursor.fetchone()
 
 
+@router.delete("/{nombre}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_estadio(nombre: str, cursor=Depends(get_db), admin=Depends(require_admin)):
+    cursor.execute("SELECT pais_sede FROM Admin WHERE usuario_mail = %s", (admin["mail"],))
+    admin_row = cursor.fetchone()
+    if not admin_row:
+        raise HTTPException(status_code=403, detail="El usuario no tiene perfil de administrador")
+
+    cursor.execute(
+        "SELECT dir_pais, dir_localidad, dir_calle, dir_numero FROM Estadio WHERE nombre = %s",
+        (nombre,),
+    )
+    estadio = cursor.fetchone()
+    if not estadio:
+        raise HTTPException(status_code=404, detail="Estadio no encontrado")
+
+    if _norm(admin_row["pais_sede"]) != _norm(estadio["dir_pais"]):
+        raise HTTPException(status_code=403, detail="El admin solo puede eliminar estadios de su país sede")
+
+    cursor.execute(
+        """
+        SELECT COUNT(*) AS cnt FROM Evento
+        WHERE estadio_pais = %s AND estadio_localidad = %s
+          AND estadio_calle = %s AND estadio_numero = %s
+        """,
+        (estadio["dir_pais"], estadio["dir_localidad"], estadio["dir_calle"], estadio["dir_numero"]),
+    )
+    if cursor.fetchone()["cnt"] > 0:
+        raise HTTPException(status_code=409, detail="El estadio tiene eventos asociados y no puede eliminarse")
+
+    cursor.execute(
+        "DELETE FROM Estadio WHERE dir_pais = %s AND dir_localidad = %s AND dir_calle = %s AND dir_numero = %s",
+        (estadio["dir_pais"], estadio["dir_localidad"], estadio["dir_calle"], estadio["dir_numero"]),
+    )
+
+
 @router.get("/{nombre}", response_model=EstadioDetail)
 def get_estadio(nombre: str, cursor=Depends(get_db)):
     cursor.execute(

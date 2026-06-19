@@ -1,6 +1,5 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-
 from database import get_db
 from dependencies.auth import get_current_user, require_admin, require_funcionario
 from schemas.usuario import MeOut, RolEnum, EstadoVerificacionEnum, UsuarioOut, UsuarioUpdate
@@ -124,6 +123,47 @@ def verificar_usuario(
     )
     return {"mail": mail, "estado_verificacion": "VERIFICADO"}
 
+@router.get("/funcionarios")
+def list_funcionarios(cursor=Depends(get_db), _=Depends(require_admin)):
+    cursor.execute(
+        """
+        SELECT u.mail, u.nombre, u.apellido, f.numero_legajo
+        FROM Usuario u
+        JOIN Funcionario f ON f.usuario_mail = u.mail
+        ORDER BY u.apellido, u.nombre
+        """
+    )
+    return cursor.fetchall()
+
+
+@router.patch("/{mail}/promover-funcionario", status_code=status.HTTP_200_OK)
+def promover_funcionario(
+    mail: str,
+    cursor=Depends(get_db),
+    _=Depends(require_admin),
+):
+    cursor.execute("SELECT mail, rol FROM Usuario WHERE mail = %s", (mail,))
+    usuario = cursor.fetchone()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if usuario["rol"] == "FUNCIONARIO":
+        raise HTTPException(status_code=409, detail="El usuario ya es funcionario")
+    if usuario["rol"] == "ADMIN":
+        raise HTTPException(status_code=400, detail="No se puede promover un admin")
+
+    cursor.execute("SELECT COUNT(*) AS total FROM Funcionario")
+    total = cursor.fetchone()["total"]
+    numero_legajo = f"LEG-{total + 1:04d}"
+
+    cursor.execute("DELETE FROM UsuarioFinal WHERE usuario_mail = %s", (mail,))
+    cursor.execute("UPDATE Usuario SET rol = 'FUNCIONARIO' WHERE mail = %s", (mail,))
+    cursor.execute(
+        "INSERT INTO Funcionario (usuario_mail, numero_legajo) VALUES (%s, %s)",
+        (mail, numero_legajo),
+    )
+    return {"mail": mail, "rol": "FUNCIONARIO", "numero_legajo": numero_legajo}
+
+
 @router.post("/sectores")
 def asignar_sector_funcionario(evento_id: str, id_sectores: list[int], user=Depends(require_funcionario), db=Depends(get_db)):
     
@@ -146,9 +186,7 @@ def asignar_sector_funcionario(evento_id: str, id_sectores: list[int], user=Depe
     try:
         for id_sector in id_sectores:
             db.execute(query, (user["mail"], id_sector, evento_id))
-        db.commit()
     except Exception as e:
-        db.rollback()
         if "Duplicate entry" in str(e):
             raise HTTPException(status_code=409, detail="El funcionario ya está asignado a uno de esos sectores")
         raise HTTPException(status_code=500, detail="Error interno al asignar sector al funcionario")

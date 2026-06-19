@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import List, Optional
 
 
@@ -16,6 +16,14 @@ class RegisterRequest(BaseModel):
     dir_numero: str
     dir_codigo_postal: Optional[str] = None
     telefonos: List[str] = []
+
+    @field_validator("telefonos")
+    @classmethod
+    def al_menos_un_telefono(cls, v):
+        non_empty = [t for t in v if t.strip()]
+        if not non_empty:
+            raise ValueError("Debe proporcionar al menos un número de teléfono")
+        return non_empty
 
 
 class LoginRequest(BaseModel):

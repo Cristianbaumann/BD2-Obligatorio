@@ -86,8 +86,6 @@ def validate_entrada(
         (entrada_id, qr["id"], body.dispositivo_id, user["mail"], ahora)
     )
 
-    db.commit()
-
     # Traer el registro insertado para retornarlo con response_model
     db.execute(
         """
