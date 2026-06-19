@@ -1,10 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from mysql.connector import IntegrityError
-from dependencies.auth import require_admin
+from dependencies.auth import require_admin, require_funcionario
 from database import get_db
 from schemas.dispositivo import DispositivoCreate, DispositivoOut
 
 router = APIRouter(prefix="/dispositivos", tags=["dispositivos"])
+
+
+@router.get("/mis-dispositivos")
+def mis_dispositivos(user=Depends(require_funcionario), db=Depends(get_db)):
+    db.execute(
+        "SELECT id, funcionario_mail, activo FROM Dispositivo WHERE funcionario_mail = %s AND activo = TRUE",
+        (user["mail"],),
+    )
+    return db.fetchall()
 
 
 @router.get("/", response_model=list[DispositivoOut])

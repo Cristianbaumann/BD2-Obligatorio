@@ -1,3 +1,7 @@
+import uuid
+import secrets
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from database import get_db
@@ -100,7 +104,16 @@ def get_qr_entrada(
     )
     qr = db.fetchone()
     if not qr:
-        raise HTTPException(status_code=404, detail="No hay QR activo para esta entrada")
+        # Deactivate any stale QRs and generate a new one
+        db.execute("UPDATE Qr SET activo = FALSE WHERE entrada_id = %s", (id,))
+        qr_id = str(uuid.uuid4())
+        codigo = secrets.token_hex(32)
+        ahora = datetime.now()
+        db.execute(
+            "INSERT INTO Qr (id, entrada_id, codigo_hash, creado_en, activo) VALUES (%s, %s, %s, %s, TRUE)",
+            (qr_id, id, codigo, ahora),
+        )
+        return QrInfo(id=qr_id, codigo_hash=codigo, creado_en=ahora, activo=True)
 
     return QrInfo(
         id=qr["id"],
@@ -191,40 +204,55 @@ def get_entrada(
     )
     
 
-@router.get("/{id}/qr")
-def obtener_qr_entrada_activo(id: int, user=Depends(require_any_role), db=Depends(get_db)):
-    query = """
-    SELECT q.*
-    FROM Qr q
-    INNER JOIN Entrada e ON e.id = q.entrada_id
-    WHERE e.id = %s
-    """
-
-    db.execute(query, (id,))
-    qr = db.fetchone()
-
-    if qr is None:
-        raise HTTPException(status_code=404, detail="QR o Entrada no encontrada")
-
-    return {"qr_activo": qr}
-
-
 @router.get("/{id}/historial")
-def cadena_custodia_entrada_id(id: int, user=Depends(require_any_role), db=Depends(get_db)):
-    query = """
-    SELECT 
-        t.origen_mail AS origen_mail,
-        t.destino_mail AS destino_mail,
-        t.fecha AS fecha_transferencia
-    FROM Transferencia t
-    WHERE t.entrada_id = %s AND t.estado = 'ACEPTADA'
-    ORDER BY t.fecha DESC
-    """
+def cadena_custodia_entrada_id(id: str, user=Depends(get_current_user), db=Depends(get_db)):
+    # Verify entrada exists and user has permission (titular or admin)
+    db.execute("SELECT titular_mail, venta_id FROM Entrada WHERE id = %s", (id,))
+    entrada = db.fetchone()
+    if not entrada:
+        raise HTTPException(status_code=404, detail="Entrada no encontrada")
+    if entrada["titular_mail"] != user["mail"] and user.get("rol") != "ADMIN":
+        raise HTTPException(status_code=403, detail="Sin permiso")
 
-    db.execute(query, (id,))
-    historial_qr = db.fetchall()
+    # Emisor original (comprador de la venta)
+    db.execute(
+        """SELECT v.usuario_mail, u.nombre, u.apellido
+           FROM Venta v JOIN Usuario u ON u.mail = v.usuario_mail
+           WHERE v.id = %s""",
+        (entrada["venta_id"],),
+    )
+    venta_row = db.fetchone()
 
-    if not historial_qr:
-        raise HTTPException(status_code=404, detail="No se encontraron QR para esta Entrada")
+    db.execute(
+        """SELECT t.id, t.origen_mail, t.destino_mail, t.fecha, t.estado,
+                  u_o.nombre AS origen_nombre, u_o.apellido AS origen_apellido,
+                  u_d.nombre AS destino_nombre, u_d.apellido AS destino_apellido
+           FROM Transferencia t
+           JOIN Usuario u_o ON u_o.mail = t.origen_mail
+           JOIN Usuario u_d ON u_d.mail = t.destino_mail
+           WHERE t.entrada_id = %s
+           ORDER BY t.fecha ASC""",
+        (id,),
+    )
+    transferencias = db.fetchall()
 
-    return {"historial_qr": historial_qr}
+    return {
+        "entrada_id": id,
+        "emisor_original": {
+            "mail": venta_row["usuario_mail"],
+            "nombre": venta_row["nombre"],
+            "apellido": venta_row["apellido"],
+        } if venta_row else None,
+        "transferencias": [
+            {
+                "id": t["id"],
+                "origen_mail": t["origen_mail"],
+                "origen_nombre": f"{t['origen_nombre']} {t['origen_apellido']}",
+                "destino_mail": t["destino_mail"],
+                "destino_nombre": f"{t['destino_nombre']} {t['destino_apellido']}",
+                "fecha": t["fecha"],
+                "estado": t["estado"],
+            }
+            for t in transferencias
+        ],
+    }
