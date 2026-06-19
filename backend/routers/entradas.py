@@ -28,6 +28,7 @@ def mis_entradas(
         """SELECT e.id, e.venta_id, e.titular_mail, e.costo,
                   e.evento_id, e.sector_id, e.consumido,
                   ev.fecha              AS evento_fecha,
+                  ev.cancelado          AS evento_cancelado,
                   el.nombre              AS equipo_local_nombre,
                   ev2.nombre             AS equipo_visitante_nombre,
                   s.nombre               AS sector_nombre,
@@ -67,6 +68,7 @@ def mis_entradas(
                 equipo_visitante=r["equipo_visitante_nombre"],
                 sector_nombre=r["sector_nombre"],
                 estadio_nombre=r["estadio_nombre"],
+                cancelado=bool(r["evento_cancelado"]),
             ),
             qr=QrInfo(
                 id=r["qr_id"],

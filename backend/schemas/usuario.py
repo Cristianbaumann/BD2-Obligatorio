@@ -63,6 +63,7 @@ class MeOut(BaseModel):
     dir_numero: str
     dir_codigo_postal: Optional[str]
     estado_verificacion: Optional[str] = None
+    saldo: Optional[float] = None
     telefonos: List[str] = []
 
 

@@ -175,6 +175,23 @@ export default function Perfil() {
           <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)' }}>Cargando...</div>
         ) : perfil && (
           <>
+            {perfil.saldo > 0 && (
+              <div style={{
+                background: 'rgba(34,197,94,0.07)',
+                border: '1px solid rgba(34,197,94,0.3)',
+                borderRadius: '12px',
+                padding: '14px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                <span style={{ fontSize: '13px', color: '#22c55e' }}>Saldo disponible por evento(s) cancelado(s)</span>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '20px', color: '#22c55e', fontWeight: 700 }}>
+                  ${perfil.saldo.toLocaleString('es-UY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            )}
+
             <Section icon={<User size={15} />} title="Datos personales">
               <InfoRow label="Nombre" value={perfil.nombre} />
               <InfoRow label="Apellido" value={perfil.apellido} />

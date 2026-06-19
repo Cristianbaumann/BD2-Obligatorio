@@ -52,6 +52,7 @@ class EventoRichOut(BaseModel):
     precio_minimo: Optional[float] = None
     capacidad: Optional[int] = None
     entradas_disponibles: Optional[int] = None
+    cancelado: bool = False
 
 
 class SectorDisponibilidadOut(BaseModel):
