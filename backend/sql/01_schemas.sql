@@ -83,9 +83,10 @@ CREATE TABLE Funcionario (
 ) ENGINE=InnoDB;
 
 CREATE TABLE UsuarioFinal (
-    usuario_mail         VARCHAR(255) NOT NULL,
-    fecha_registro       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    usuario_mail         VARCHAR(255)   NOT NULL,
+    fecha_registro       DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     estado_verificacion  ENUM('PENDIENTE','VERIFICADO','RECHAZADO') NOT NULL DEFAULT 'PENDIENTE',
+    saldo                DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
     PRIMARY KEY (usuario_mail),
     CONSTRAINT fk_ufinal_usuario FOREIGN KEY (usuario_mail)
         REFERENCES Usuario(mail) ON DELETE CASCADE
@@ -145,6 +146,7 @@ CREATE TABLE Evento (
     estadio_localidad    VARCHAR(150) NOT NULL,
     estadio_calle        VARCHAR(200) NOT NULL,
     estadio_numero       VARCHAR(20)  NOT NULL,
+    cancelado            BOOLEAN      NOT NULL DEFAULT FALSE,
     PRIMARY KEY (id),
     CONSTRAINT chk_equipos_distintos CHECK (equipo_local_id <> equipo_visitante_id),
     CONSTRAINT fk_evento_local     FOREIGN KEY (equipo_local_id)

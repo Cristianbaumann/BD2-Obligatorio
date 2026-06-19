@@ -359,15 +359,23 @@ function EventGroup({ evento, entradas, index, onTransfer }) {
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', flex: 1 }}>
           <div style={{
             width: '38px', height: '38px', borderRadius: '8px', flexShrink: 0,
-            background: 'rgba(201,162,39,0.1)', border: '1px solid rgba(201,162,39,0.25)',
+            background: evento.cancelado ? 'rgba(239,68,68,0.1)' : 'rgba(201,162,39,0.1)',
+            border: `1px solid ${evento.cancelado ? 'rgba(239,68,68,0.25)' : 'rgba(201,162,39,0.25)'}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Ticket size={18} color="#C9A227" />
+            <Ticket size={18} color={evento.cancelado ? '#ef4444' : '#C9A227'} />
           </div>
           <div>
-            <p style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '20px', color: '#fff', letterSpacing: '1px', lineHeight: 1.1, marginBottom: '3px' }}>
-              {evento.equipo_local} <span style={{ color: '#C9A227' }}>vs</span> {evento.equipo_visitante}
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+              <p style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '20px', color: evento.cancelado ? 'rgba(255,255,255,0.45)' : '#fff', letterSpacing: '1px', lineHeight: 1.1 }}>
+                {evento.equipo_local} <span style={{ color: '#C9A227' }}>vs</span> {evento.equipo_visitante}
+              </p>
+              {evento.cancelado && (
+                <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(239,68,68,0.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)', flexShrink: 0 }}>
+                  CANCELADO
+                </span>
+              )}
+            </div>
             <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>
               {evento.estadio_nombre} · {new Date(evento.fecha).toLocaleDateString('es-UY', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </p>

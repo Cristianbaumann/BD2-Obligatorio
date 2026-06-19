@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, MapPin, CalendarDays, Pencil, ChevronUp, Trash2 } from 'lucide-react'
+import { Plus, X, MapPin, CalendarDays, Pencil, ChevronUp, Trash2, Ban } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
@@ -127,6 +127,18 @@ export default function AdminEventos() {
       loadEventos()
     } catch (err) {
       toast.error(extractDetail(err, 'Error al eliminar evento'))
+    }
+  }
+
+  async function handleCancelar(ev, id) {
+    ev.stopPropagation()
+    if (!window.confirm('¿Cancelar este evento? Se reembolsará el saldo a todos los compradores. Esta acción no se puede deshacer.')) return
+    try {
+      const r = await api.patch(`/eventos/${id}/cancelar`)
+      toast.success(`Evento cancelado. ${r.data.usuarios_reembolsados} usuario(s) reembolsado(s) por $${r.data.total_reembolsado}`)
+      loadEventos()
+    } catch (err) {
+      toast.error(extractDetail(err, 'Error al cancelar evento'))
     }
   }
 
@@ -342,9 +354,16 @@ export default function AdminEventos() {
                     }}
                   >
                     <div>
-                      <p style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '18px', color: '#fff', letterSpacing: '0.5px' }}>
-                        {e.equipo_local} <span style={{ color: '#C9A227' }}>vs</span> {e.equipo_visitante}
-                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <p style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '18px', color: e.cancelado ? 'rgba(255,255,255,0.4)' : '#fff', letterSpacing: '0.5px' }}>
+                          {e.equipo_local} <span style={{ color: '#C9A227' }}>vs</span> {e.equipo_visitante}
+                        </p>
+                        {e.cancelado && (
+                          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(239,68,68,0.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
+                            CANCELADO
+                          </span>
+                        )}
+                      </div>
                       <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                         <MapPin size={11} /> {e.estadio || 'Sin estadio'} · {new Date(e.fecha).toLocaleDateString('es-UY', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </p>
@@ -353,6 +372,17 @@ export default function AdminEventos() {
                       <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#C9A227', fontSize: '15px', fontWeight: 700 }}>
                         {e.precio_minimo != null ? `$${e.precio_minimo}` : '—'}
                       </span>
+                      {!e.cancelado && (
+                        <button
+                          onClick={(ev) => handleCancelar(ev, e.id)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', opacity: 0.4 }}
+                          onMouseEnter={el => el.currentTarget.style.opacity = '1'}
+                          onMouseLeave={el => el.currentTarget.style.opacity = '0.4'}
+                          title="Cancelar evento"
+                        >
+                          <Ban size={18} color="#f97316" />
+                        </button>
+                      )}
                       <button
                         onClick={(ev) => handleDelete(ev, e.id)}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', opacity: 0.4 }}

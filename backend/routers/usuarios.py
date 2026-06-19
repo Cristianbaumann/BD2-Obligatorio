@@ -51,7 +51,8 @@ def get_me(cursor=Depends(get_db), user=Depends(get_current_user)):
         SELECT u.mail, u.nombre, u.apellido, u.rol,
                u.doc_pais, u.doc_tipo, u.doc_numero,
                u.dir_pais, u.dir_localidad, u.dir_calle, u.dir_numero, u.dir_codigo_postal,
-               uf.estado_verificacion
+               uf.estado_verificacion,
+               uf.saldo
         FROM Usuario u
         LEFT JOIN UsuarioFinal uf ON uf.usuario_mail = u.mail
         WHERE u.mail = %s

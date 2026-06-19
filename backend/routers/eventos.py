@@ -32,6 +32,7 @@ def list_eventos(db=Depends(get_db)):
         SELECT
             e.id,
             e.fecha,
+            e.cancelado,
             eq_local.nombre  AS equipo_local,
             eq_visit.nombre  AS equipo_visitante,
             est.nombre       AS estadio,
@@ -186,6 +187,7 @@ def get_evento(id: str, db=Depends(get_db)):
         SELECT
             e.id,
             e.fecha,
+            e.cancelado,
             eq_local.nombre  AS equipo_local,
             eq_visit.nombre  AS equipo_visitante,
             est.nombre       AS estadio,
@@ -483,5 +485,56 @@ def remove_evento_sector(
         "DELETE FROM EventoSector WHERE evento_id = %s AND sector_id = %s",
         (id, sector_id),
     )
-    
+
     return {"detail": f"Sector {sector_id} deshabilitado para el evento {id}"}
+
+
+@router.patch(
+    "/{id}/cancelar",
+    summary="Cancelar evento y reembolsar entradas",
+    description="Marca el evento como cancelado y acredita el saldo de cada comprador. Solo admins de la jurisdicción.",
+)
+def cancelar_evento(id: str, db=Depends(get_db), admin=Depends(require_admin)):
+    pais_sede = _get_admin_pais_sede(db, admin["mail"])
+
+    db.execute("SELECT estadio_pais, cancelado FROM Evento WHERE id = %s", (id,))
+    evento = db.fetchone()
+    if not evento:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    if evento["estadio_pais"] != pais_sede:
+        raise HTTPException(status_code=403, detail="El admin no puede cancelar eventos fuera de su jurisdicción")
+    if evento["cancelado"]:
+        raise HTTPException(status_code=409, detail="El evento ya está cancelado")
+
+    db.execute("UPDATE Evento SET cancelado = TRUE WHERE id = %s", (id,))
+
+    # Reembolsar a cada usuario: costo de sus entradas * (1 + tasa_comision)
+    db.execute(
+        """
+        SELECT v.usuario_mail,
+               SUM(ent.costo * (1 + v.tasa_comision)) AS reembolso
+        FROM Entrada ent
+        JOIN Venta v ON v.id = ent.venta_id
+        WHERE ent.evento_id = %s
+          AND v.estado_id IN (
+              SELECT id FROM Estado WHERE descripcion IN ('PAGA', 'CONFIRMADA')
+          )
+        GROUP BY v.usuario_mail
+        """,
+        (id,),
+    )
+    afectados = db.fetchall()
+
+    total_reembolsado = 0.0
+    for row in afectados:
+        db.execute(
+            "UPDATE UsuarioFinal SET saldo = saldo + %s WHERE usuario_mail = %s",
+            (row["reembolso"], row["usuario_mail"]),
+        )
+        total_reembolsado += float(row["reembolso"])
+
+    return {
+        "cancelado": True,
+        "usuarios_reembolsados": len(afectados),
+        "total_reembolsado": round(total_reembolsado, 2),
+    }
