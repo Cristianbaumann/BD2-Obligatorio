@@ -6,8 +6,7 @@ import {
 import { DollarSign, Ticket, Users, Trophy } from 'lucide-react'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
-
-const ADMIN_LINKS = [['Eventos', '/admin/eventos'], ['Estadios', '/admin/estadios'], ['Funcionarios', '/admin/funcionarios'], ['Configuración', '/admin/configuracion']]
+import { ADMIN_LINKS } from '../../constants/navLinks'
 
 const TOOLTIP_STYLE = {
   background: '#0E1A2E',

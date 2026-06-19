@@ -5,8 +5,7 @@ import toast from 'react-hot-toast'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
 import StadiumDrawer from '../../components/admin/StadiumDrawer'
-
-const ADMIN_LINKS = [['Eventos', '/admin/eventos'], ['Estadios', '/admin/estadios'], ['Funcionarios', '/admin/funcionarios'], ['Configuración', '/admin/configuracion']]
+import { ADMIN_LINKS } from '../../constants/navLinks'
 const EMPTY_FORM = { nombre: '', dir_pais: '', dir_localidad: '', dir_calle: '', dir_numero: '', aforo: '' }
 
 function extractDetail(err) {
