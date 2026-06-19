@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { QRCodeSVG } from 'qrcode.react'
 import api from '../services/api'
 
 const RADIUS = 54
@@ -21,7 +20,7 @@ export default function QRCountdown({ entradaId }) {
 
   const fetchQR = useCallback(async () => {
     try {
-      const res = await api.get(`/entradas/${entradaId}/qr`)
+      const res = await api.get(`/qr/${entradaId}`)
       setQrData(res.data)
       setSeconds(TOTAL_SECONDS)
     } catch {
@@ -106,12 +105,12 @@ export default function QRCountdown({ entradaId }) {
               overflow: 'hidden',
             }}
           >
-            <QRCodeSVG
-              value={qrData.codigo_hash || 'invalid'}
-              size={100}
-              bgColor="#ffffff"
-              fgColor="#0A0A12"
-              level="M"
+            <img
+              src={qrData.qr_url}
+              alt="QR"
+              width={100}
+              height={100}
+              style={{ display: 'block' }}
             />
           </motion.div>
         </AnimatePresence>
