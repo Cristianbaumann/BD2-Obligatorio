@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { Plus, X, UserCheck, User } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Plus, X, UserCheck, User, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
+import { ADMIN_LINKS } from '../../constants/navLinks'
 
-const ADMIN_LINKS = [['Eventos', '/admin/eventos'], ['Estadios', '/admin/estadios'], ['Funcionarios', '/admin/funcionarios'], ['Configuración', '/admin/configuracion']]
-const EMPTY_FORM = { funcionario_id: '', evento_id: '', sector: '' }
+const EMPTY_FORM = { funcionario_mail: '', evento_id: '', sector_id: '' }
 
 function extractDetail(err, fallback = 'Error') {
   const d = err?.response?.data?.detail
@@ -19,34 +19,75 @@ function extractDetail(err, fallback = 'Error') {
 export default function AdminFuncionarios() {
   const [funcionarios, setFuncionarios] = useState([])
   const [eventos, setEventos] = useState([])
+  const [sectores, setSectores] = useState([])
+  const [asignaciones, setAsignaciones] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAssign, setShowAssign] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
-
-  const load = () => api.get('/usuarios/funcionarios').then(r => setFuncionarios(r.data)).catch(() => {}).finally(() => setLoading(false))
+  const [submitting, setSubmitting] = useState(false)
+  const [eliminando, setEliminando] = useState(null)
 
   useEffect(() => {
-    load()
-    api.get('/eventos').then(r => setEventos(r.data)).catch(() => {})
+    Promise.all([
+      api.get('/usuarios/funcionarios'),
+      api.get('/eventos'),
+    ]).then(([f, ev]) => {
+      setFuncionarios(f.data)
+      setEventos(ev.data)
+    }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
-  const set = (f) => (e) => setForm(p => ({ ...p, [f]: e.target.value }))
+  async function onEventoChange(evento_id) {
+    setForm(p => ({ ...p, evento_id, sector_id: '' }))
+    setSectores([])
+    setAsignaciones([])
+    if (!evento_id) return
+    try {
+      const [dispRes, asigRes] = await Promise.all([
+        api.get(`/reportes/disponibilidad_evento/${evento_id}`),
+        api.get(`/asignaciones?evento_id=${evento_id}`),
+      ])
+      setSectores(dispRes.data)
+      setAsignaciones(asigRes.data)
+    } catch {}
+  }
 
   async function handleAssign(e) {
     e.preventDefault()
+    if (!form.sector_id) return toast.error('Seleccioná un sector')
+    setSubmitting(true)
     try {
       await api.post('/asignaciones', {
-        funcionario_id: Number(form.funcionario_id),
-        evento_id: Number(form.evento_id),
-        sector: form.sector,
+        funcionario_mail: form.funcionario_mail,
+        evento_id: form.evento_id,
+        sector_id: Number(form.sector_id),
       })
       toast.success('Funcionario asignado')
-      setShowAssign(false)
-      setForm(EMPTY_FORM)
+      setForm(p => ({ ...p, funcionario_mail: '', sector_id: '' }))
+      // Refresh asignaciones
+      const r = await api.get(`/asignaciones?evento_id=${form.evento_id}`)
+      setAsignaciones(r.data)
     } catch (err) {
       toast.error(extractDetail(err, 'Error al asignar'))
+    } finally {
+      setSubmitting(false)
     }
   }
+
+  async function handleEliminar(id) {
+    setEliminando(id)
+    try {
+      await api.delete(`/asignaciones/${id}`)
+      setAsignaciones(prev => prev.filter(a => a.id !== id))
+      toast.success('Asignación eliminada')
+    } catch (err) {
+      toast.error(extractDetail(err, 'Error al eliminar'))
+    } finally {
+      setEliminando(null)
+    }
+  }
+
+  const set = (f) => (e) => setForm(p => ({ ...p, [f]: e.target.value }))
 
   return (
     <Layout brand="ADMIN" links={ADMIN_LINKS}>
@@ -57,40 +98,41 @@ export default function AdminFuncionarios() {
           </h1>
           <button onClick={() => setShowAssign(s => !s)} className="btn-gold">
             {showAssign ? <X size={16} /> : <UserCheck size={16} />}
-            {showAssign ? 'Cerrar' : 'Asignar'}
+            {showAssign ? 'Cerrar' : 'Asignar sector'}
           </button>
         </div>
 
-        {showAssign && (
-          <motion.div
-            initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
-            className="glass-card"
-            style={{ padding: '28px', marginBottom: '32px' }}
-          >
-            <h3 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '22px', color: '#C9A227', marginBottom: '20px' }}>
-              Asignar Funcionario a Evento
-            </h3>
-            <form onSubmit={handleAssign} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px', letterSpacing: '0.5px' }}>Funcionario</label>
-                {funcionarios.length === 0 ? (
-                  <input type="number" value={form.funcionario_id} onChange={set('funcionario_id')} required placeholder="ID" className="form-input" />
-                ) : (
-                  <select value={form.funcionario_id} onChange={set('funcionario_id')} required className="form-input" style={{ cursor: 'pointer' }}>
+        <AnimatePresence>
+          {showAssign && (
+            <motion.div
+              initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
+              className="glass-card"
+              style={{ padding: '28px', marginBottom: '32px' }}
+            >
+              <h3 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '22px', color: '#C9A227', marginBottom: '20px' }}>
+                Asignar Funcionario a Sector
+              </h3>
+
+              <form onSubmit={handleAssign} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: asignaciones.length > 0 ? '24px' : 0 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginBottom: '6px', letterSpacing: '1px', textTransform: 'uppercase' }}>Funcionario</label>
+                  <select value={form.funcionario_mail} onChange={set('funcionario_mail')} required className="form-input" style={{ cursor: 'pointer' }}>
                     <option value="">Seleccioná...</option>
                     {funcionarios.map(f => (
-                      <option key={f.id} value={f.id}>{f.nombre} {f.apellido}</option>
+                      <option key={f.mail || f.email} value={f.mail || f.email}>
+                        {f.nombre} {f.apellido}
+                      </option>
                     ))}
                   </select>
-                )}
-              </div>
+                </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px', letterSpacing: '0.5px' }}>Evento</label>
-                {eventos.length === 0 ? (
-                  <input type="number" value={form.evento_id} onChange={set('evento_id')} required placeholder="ID" className="form-input" />
-                ) : (
-                  <select value={form.evento_id} onChange={set('evento_id')} required className="form-input" style={{ cursor: 'pointer' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginBottom: '6px', letterSpacing: '1px', textTransform: 'uppercase' }}>Evento</label>
+                  <select
+                    value={form.evento_id}
+                    onChange={e => onEventoChange(e.target.value)}
+                    required className="form-input" style={{ cursor: 'pointer' }}
+                  >
                     <option value="">Seleccioná...</option>
                     {eventos.map(ev => (
                       <option key={ev.id} value={ev.id}>
@@ -98,20 +140,54 @@ export default function AdminFuncionarios() {
                       </option>
                     ))}
                   </select>
-                )}
-              </div>
+                </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px', letterSpacing: '0.5px' }}>Sector</label>
-                <input type="text" value={form.sector} onChange={set('sector')} required placeholder="Norte, Sur, Palco..." className="form-input" />
-              </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginBottom: '6px', letterSpacing: '1px', textTransform: 'uppercase' }}>Sector</label>
+                  <select value={form.sector_id} onChange={set('sector_id')} required className="form-input" style={{ cursor: 'pointer' }} disabled={sectores.length === 0}>
+                    <option value="">{sectores.length === 0 ? 'Seleccioná un evento' : 'Seleccioná...'}</option>
+                    {sectores.map(s => (
+                      <option key={s.sector_id} value={s.sector_id}>{s.sector_nombre}</option>
+                    ))}
+                  </select>
+                </div>
 
-              <button type="submit" className="btn-gold" style={{ gridColumn: '1 / -1', justifyContent: 'center', padding: '13px', fontSize: '18px' }}>
-                Asignar Funcionario
-              </button>
-            </form>
-          </motion.div>
-        )}
+                <button type="submit" disabled={submitting} className="btn-gold" style={{ gridColumn: '1 / -1', justifyContent: 'center', padding: '13px', fontSize: '18px', opacity: submitting ? 0.6 : 1 }}>
+                  {submitting ? 'Asignando...' : 'Asignar Funcionario'}
+                </button>
+              </form>
+
+              {asignaciones.length > 0 && (
+                <div>
+                  <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '10px' }}>
+                    Asignaciones actuales del evento
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {asignaciones.map(a => (
+                      <div key={a.id} style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '10px 14px', background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px',
+                      }}>
+                        <div>
+                          <span style={{ color: '#fff', fontSize: '13px' }}>{a.nombre} {a.apellido}</span>
+                          <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '12px', marginLeft: '10px' }}>— {a.sector_nombre}</span>
+                        </div>
+                        <button
+                          onClick={() => handleEliminar(a.id)}
+                          disabled={eliminando === a.id}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', opacity: eliminando === a.id ? 0.4 : 1, padding: '4px' }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '80px' }}>
@@ -125,7 +201,7 @@ export default function AdminFuncionarios() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {funcionarios.map((f, i) => (
-              <motion.div key={f.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
+              <motion.div key={f.mail || f.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
                 className="row-item"
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -138,7 +214,7 @@ export default function AdminFuncionarios() {
                   </div>
                   <div>
                     <p style={{ color: '#fff', fontSize: '15px', fontWeight: 500 }}>{f.nombre} {f.apellido}</p>
-                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>{f.email}</p>
+                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>{f.mail || f.email}</p>
                   </div>
                 </div>
                 <span style={{ fontSize: '11px', padding: '3px 10px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.3)' }}>

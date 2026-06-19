@@ -11,7 +11,7 @@ from mysql.connector import IntegrityError, DatabaseError
 from routers import (
     auth, usuarios, estadios, equipos, eventos,
     ventas, entradas, transferencias, qr,
-    validaciones, dispositivos, reportes,
+    validaciones, dispositivos, reportes, asignaciones,
 )
 
 app = FastAPI(title="Ticketing API")
@@ -52,3 +52,4 @@ app.include_router(qr.router)
 app.include_router(validaciones.router)
 app.include_router(dispositivos.router)
 app.include_router(reportes.router)
+app.include_router(asignaciones.router)
