@@ -13,16 +13,19 @@ CART_TTL_MINUTES = 15
 
 
 def _cleanup_expired(db):
-    db.execute(
-        """DELETE e FROM Entrada e
-           JOIN Venta v ON v.id = e.venta_id
-           WHERE v.estado_id = 1 AND v.fecha < NOW() - INTERVAL %s MINUTE""",
-        (CART_TTL_MINUTES,),
-    )
-    db.execute(
-        "DELETE FROM Venta WHERE estado_id = 1 AND fecha < NOW() - INTERVAL %s MINUTE",
-        (CART_TTL_MINUTES,),
-    )
+    try:
+        db.execute(
+            """DELETE e FROM Entrada e
+               JOIN Venta v ON v.id = e.venta_id
+               WHERE v.estado_id = 1 AND v.fecha < NOW() - INTERVAL %s MINUTE""",
+            (CART_TTL_MINUTES,),
+        )
+        db.execute(
+            "DELETE FROM Venta WHERE estado_id = 1 AND fecha < NOW() - INTERVAL %s MINUTE",
+            (CART_TTL_MINUTES,),
+        )
+    except Exception:
+        pass
 
 
 @router.post(
@@ -278,7 +281,6 @@ def mis_ventas(
     description="Retorna las ventas PENDIENTE no expiradas con info de evento y sector.",
 )
 def get_carrito(db=Depends(get_db), user=Depends(get_current_user)):
-    _cleanup_expired(db)
     db.execute(
         """SELECT id, usuario_mail, fecha, estado_id, precio, tasa_comision,
                   GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(), fecha + INTERVAL %s MINUTE)) AS segundos_restantes
