@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, UserCheck, User, Trash2, ArrowUpCircle } from 'lucide-react'
+import { X, UserCheck, User, Trash2, ArrowUpCircle, ChevronDown, ChevronUp, MapPin, UserMinus, Pencil, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
@@ -21,7 +21,12 @@ export default function AdminFuncionarios() {
   const [eventos, setEventos] = useState([])
   const [sectores, setSectores] = useState([])
   const [asignaciones, setAsignaciones] = useState([])
+  const [allAsignaciones, setAllAsignaciones] = useState([])
   const [loading, setLoading] = useState(true)
+  const [expandedFuncionario, setExpandedFuncionario] = useState(null)
+  const [dandoDeBaja, setDandoDeBaja] = useState(null)
+  const [editingAsig, setEditingAsig] = useState(null) // { id, sector_id, sectores[] }
+  const [savingAsig, setSavingAsig] = useState(null)
   const [showAssign, setShowAssign] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [submitting, setSubmitting] = useState(false)
@@ -42,9 +47,11 @@ export default function AdminFuncionarios() {
     Promise.all([
       api.get('/usuarios/funcionarios'),
       api.get('/eventos'),
-    ]).then(([f, ev]) => {
+      api.get('/asignaciones'),
+    ]).then(([f, ev, asig]) => {
       setFuncionarios(f.data)
       setEventos(ev.data)
+      setAllAsignaciones(asig.data)
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
@@ -102,8 +109,12 @@ export default function AdminFuncionarios() {
       })
       toast.success('Funcionario asignado')
       setForm(p => ({ ...p, funcionario_mail: '', sector_id: '' }))
-      const r = await api.get(`/asignaciones?evento_id=${form.evento_id}`)
+      const [r, all] = await Promise.all([
+        api.get(`/asignaciones?evento_id=${form.evento_id}`),
+        api.get('/asignaciones'),
+      ])
       setAsignaciones(r.data)
+      setAllAsignaciones(all.data)
     } catch (err) {
       toast.error(extractDetail(err, 'Error al asignar'))
     } finally {
@@ -116,11 +127,64 @@ export default function AdminFuncionarios() {
     try {
       await api.delete(`/asignaciones/${id}`)
       setAsignaciones(prev => prev.filter(a => a.id !== id))
+      setAllAsignaciones(prev => prev.filter(a => a.id !== id))
       toast.success('Asignación eliminada')
     } catch (err) {
       toast.error(extractDetail(err, 'Error al eliminar'))
     } finally {
       setEliminando(null)
+    }
+  }
+
+  async function handleDarDeBaja(mail, nombre) {
+    if (!window.confirm(`¿Dar de baja a ${nombre} como funcionario? Perderá el rol y se eliminarán sus asignaciones.`)) return
+    setDandoDeBaja(mail)
+    try {
+      await api.patch(`/usuarios/${encodeURIComponent(mail)}/dar-de-baja`)
+      toast.success(`${nombre} dado de baja`)
+      setFuncionarios(prev => prev.filter(f => (f.mail || f.email) !== mail))
+      setAllAsignaciones(prev => prev.filter(a => a.funcionario_mail !== mail))
+      if (expandedFuncionario === mail) setExpandedFuncionario(null)
+    } catch (err) {
+      toast.error(extractDetail(err, 'Error al dar de baja'))
+    } finally {
+      setDandoDeBaja(null)
+    }
+  }
+
+  async function startEditAsig(a) {
+    try {
+      const r = await api.get(`/reportes/disponibilidad_evento/${a.evento_id}`)
+      setEditingAsig({ id: a.id, sector_id: a.sector_id, sectores: r.data })
+    } catch {
+      toast.error('Error al cargar sectores')
+    }
+  }
+
+  async function saveEditAsig() {
+    if (!editingAsig) return
+    setSavingAsig(editingAsig.id)
+    try {
+      const res = await api.patch(`/asignaciones/${editingAsig.id}`, { sector_id: editingAsig.sector_id })
+      setAllAsignaciones(prev => prev.map(a => a.id === editingAsig.id ? { ...a, ...res.data } : a))
+      setAsignaciones(prev => prev.map(a => a.id === editingAsig.id ? { ...a, ...res.data } : a))
+      toast.success('Sector actualizado')
+      setEditingAsig(null)
+    } catch (err) {
+      toast.error(extractDetail(err, 'Error al actualizar'))
+    } finally {
+      setSavingAsig(null)
+    }
+  }
+
+  async function handleEliminarAsignacion(id) {
+    try {
+      await api.delete(`/asignaciones/${id}`)
+      setAllAsignaciones(prev => prev.filter(a => a.id !== id))
+      setAsignaciones(prev => prev.filter(a => a.id !== id))
+      toast.success('Asignación eliminada')
+    } catch (err) {
+      toast.error(extractDetail(err, 'Error al eliminar asignación'))
     }
   }
 
@@ -301,35 +365,121 @@ export default function AdminFuncionarios() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {funcionarios.map((f, i) => (
-              <motion.div key={f.mail || f.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
-                className="row-item"
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{
-                    width: '40px', height: '40px', borderRadius: '10px',
-                    background: 'rgba(201,162,39,0.1)', border: '1px solid rgba(201,162,39,0.2)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <UserCheck size={18} color="#C9A227" />
+            {funcionarios.map((f, i) => {
+              const mail = f.mail || f.email
+              const misAsig = allAsignaciones.filter(a => a.funcionario_mail === mail)
+              const isOpen = expandedFuncionario === mail
+              return (
+                <motion.div key={mail} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
+                  style={{ borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}
+                >
+                  <div
+                    className="row-item"
+                    style={{ cursor: misAsig.length > 0 ? 'pointer' : 'default', border: 'none', borderRadius: 0, background: 'transparent' }}
+                    onClick={() => misAsig.length > 0 && setExpandedFuncionario(isOpen ? null : mail)}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <div style={{
+                        width: '40px', height: '40px', borderRadius: '10px',
+                        background: 'rgba(201,162,39,0.1)', border: '1px solid rgba(201,162,39,0.2)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <UserCheck size={18} color="#C9A227" />
+                      </div>
+                      <div>
+                        <p style={{ color: '#fff', fontSize: '15px', fontWeight: 500 }}>{f.nombre} {f.apellido}</p>
+                        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>{mail}</p>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      {f.numero_legajo && (
+                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+                          Legajo: {f.numero_legajo}
+                        </span>
+                      )}
+                      <span style={{ fontSize: '11px', padding: '3px 10px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.3)' }}>
+                        FUNCIONARIO
+                      </span>
+                      {misAsig.length > 0 && (
+                        <span style={{ fontSize: '11px', padding: '3px 10px', background: 'rgba(201,162,39,0.08)', color: '#C9A227', borderRadius: '20px', border: '1px solid rgba(201,162,39,0.2)' }}>
+                          {misAsig.length} sector{misAsig.length !== 1 ? 'es' : ''}
+                        </span>
+                      )}
+                      {misAsig.length > 0 && (
+                        isOpen
+                          ? <ChevronUp size={14} color="rgba(255,255,255,0.3)" />
+                          : <ChevronDown size={14} color="rgba(255,255,255,0.3)" />
+                      )}
+                      <button
+                        onClick={e => { e.stopPropagation(); handleDarDeBaja(mail, `${f.nombre} ${f.apellido}`) }}
+                        disabled={dandoDeBaja === mail}
+                        title="Dar de baja"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', opacity: dandoDeBaja === mail ? 0.4 : 0.7, padding: '4px', flexShrink: 0 }}
+                      >
+                        <UserMinus size={15} />
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <p style={{ color: '#fff', fontSize: '15px', fontWeight: 500 }}>{f.nombre} {f.apellido}</p>
-                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>{f.mail || f.email}</p>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  {f.numero_legajo && (
-                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
-                      Legajo: {f.numero_legajo}
-                    </span>
-                  )}
-                  <span style={{ fontSize: '11px', padding: '3px 10px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', borderRadius: '20px', border: '1px solid rgba(34,197,94,0.3)' }}>
-                    FUNCIONARIO
-                  </span>
-                </div>
-              </motion.div>
-            ))}
+
+                  <AnimatePresence>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.22 }}
+                        style={{ borderTop: '1px solid rgba(201,162,39,0.1)', overflow: 'hidden' }}
+                      >
+                        <div style={{ padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {misAsig.map(a => {
+                            const ev = eventos.find(e => e.id === a.evento_id)
+                            const isEditing = editingAsig?.id === a.id
+                            return (
+                              <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                                <MapPin size={11} color="#C9A227" style={{ flexShrink: 0 }} />
+                                <span style={{ color: 'rgba(255,255,255,0.7)', flex: 1 }}>
+                                  {ev ? `${ev.equipo_local} vs ${ev.equipo_visitante}` : a.evento_id}
+                                  {ev && <span style={{ color: 'rgba(255,255,255,0.3)' }}> · {new Date(ev.fecha).toLocaleDateString('es-UY', { day: 'numeric', month: 'short' })}</span>}
+                                  {!isEditing && <span style={{ color: '#C9A227', fontWeight: 600 }}> — {a.sector_nombre}</span>}
+                                </span>
+                                {isEditing ? (
+                                  <>
+                                    <select
+                                      value={editingAsig.sector_id}
+                                      onChange={e => setEditingAsig(p => ({ ...p, sector_id: Number(e.target.value) }))}
+                                      style={{ fontSize: '11px', padding: '2px 6px', background: '#0E1A2E', border: '1px solid rgba(201,162,39,0.3)', borderRadius: '5px', color: '#fff', outline: 'none' }}
+                                    >
+                                      {editingAsig.sectores.map(s => (
+                                        <option key={s.sector_id} value={s.sector_id} style={{ background: '#0E1A2E', color: '#fff' }}>{s.sector_nombre}</option>
+                                      ))}
+                                    </select>
+                                    <button onClick={saveEditAsig} disabled={savingAsig === a.id} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#22c55e', padding: '2px' }}>
+                                      <Check size={13} />
+                                    </button>
+                                    <button onClick={() => setEditingAsig(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', padding: '2px' }}>
+                                      <X size={13} />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button onClick={() => startEditAsig(a)} title="Cambiar sector" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C9A227', opacity: 0.6, padding: '2px', flexShrink: 0 }}>
+                                      <Pencil size={11} />
+                                    </button>
+                                    <button onClick={() => handleEliminarAsignacion(a.id)} title="Eliminar asignación" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', opacity: 0.6, padding: '2px', flexShrink: 0 }}>
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              )
+            })}
           </div>
         )}
       </div>

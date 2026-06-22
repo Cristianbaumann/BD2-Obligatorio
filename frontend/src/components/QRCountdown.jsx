@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Copy, Check } from 'lucide-react'
 import api from '../services/api'
 
 const RADIUS = 54
@@ -17,6 +18,18 @@ export default function QRCountdown({ entradaId }) {
   const [seconds, setSeconds] = useState(TOTAL_SECONDS)
   const [flipping, setFlipping] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [copied, setCopied] = useState(false)
+
+  async function copyHash() {
+    try {
+      const res = await api.get(`/qr/${entradaId}`)
+      setQrData(res.data)
+      setSeconds(TOTAL_SECONDS)
+      await navigator.clipboard.writeText(res.data.codigo_hash)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {}
+  }
 
   const fetchQR = useCallback(async () => {
     try {
@@ -134,6 +147,33 @@ export default function QRCountdown({ entradaId }) {
       <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', letterSpacing: '1px', marginTop: '16px' }}>
         QR se renueva cada 30 segundos
       </p>
+
+      {qrData?.codigo_hash && (
+        <div style={{ width: '100%', maxWidth: '320px' }}>
+          <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '6px', textAlign: 'center' }}>
+            Código para ingreso manual
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,162,39,0.15)', borderRadius: '8px', padding: '8px 10px' }}>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '10px', color: 'rgba(255,255,255,0.4)', flex: 1, wordBreak: 'break-all', lineHeight: 1.4 }}>
+              {qrData.codigo_hash}
+            </span>
+            <button
+              onClick={copyHash}
+              title="Copiar código"
+              style={{
+                flexShrink: 0, background: copied ? 'rgba(34,197,94,0.15)' : 'rgba(201,162,39,0.1)',
+                border: `1px solid ${copied ? 'rgba(34,197,94,0.3)' : 'rgba(201,162,39,0.25)'}`,
+                borderRadius: '6px', padding: '5px 8px', cursor: 'pointer',
+                color: copied ? '#22c55e' : '#C9A227',
+                display: 'flex', alignItems: 'center', gap: '4px',
+                fontSize: '10px', fontWeight: 600, transition: 'all 0.15s',
+              }}
+            >
+              {copied ? <><Check size={11} /> Copiado</> : <><Copy size={11} /> Copiar</>}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -56,6 +56,38 @@ ORDER BY fse.sector_id
 
 ---
 
+## PATCH /asignaciones/{id}
+
+**¿Qué hace?** Cambia el sector de una asignación existente.
+
+**Acceso**: ADMIN
+
+**Body**:
+```json
+{ "sector_id": 3 }
+```
+
+**Proceso**:
+1. Verifica que la asignación exista → 404
+2. Verifica que el nuevo sector pertenezca al mismo evento de la asignación (`EventoSector`) → 404
+3. `UPDATE FuncionarioSectorEvento SET sector_id = ? WHERE id = ?`
+4. Devuelve la asignación actualizada con JOIN a `Usuario` y `Sector` para incluir nombres
+
+**Respuesta 200**:
+```json
+{
+  "id": 5,
+  "funcionario_mail": "funcionario@example.com",
+  "evento_id": "uuid-evento",
+  "sector_id": 3,
+  "nombre": "Carlos",
+  "apellido": "López",
+  "sector_nombre": "VIP"
+}
+```
+
+---
+
 ## DELETE /asignaciones/{id}
 
 **¿Qué hace?** Elimina una asignación.

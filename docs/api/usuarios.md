@@ -163,6 +163,32 @@ Usa JOIN (no LEFT JOIN) porque solo queremos los usuarios que TIENEN perfil de f
 
 ---
 
+## PATCH /usuarios/{mail}/dar-de-baja
+
+**¿Qué hace?** Revierte un FUNCIONARIO a USUARIO_FINAL.
+
+**Acceso**: ADMIN
+
+**Proceso**:
+1. Verifica que el usuario exista → 404
+2. Verifica que sea FUNCIONARIO → 409 si no lo es
+3. `DELETE FROM FuncionarioSectorEvento WHERE funcionario_mail = ?` — elimina todas sus asignaciones
+4. `UPDATE Dispositivo SET activo = FALSE WHERE funcionario_mail = ?` — desactiva sus dispositivos (no se eliminan para preservar historial de validaciones)
+5. `DELETE FROM Funcionario WHERE usuario_mail = ?`
+6. `UPDATE Usuario SET rol = 'USUARIO_FINAL' WHERE mail = ?`
+7. `INSERT INTO UsuarioFinal (usuario_mail, saldo) VALUES (?, 0)` — nuevo perfil con saldo 0
+
+**¿Por qué saldo 0?** El funcionario no tenía saldo previo (su perfil en `UsuarioFinal` fue eliminado al ser promovido). Se recrea desde cero.
+
+**¿Por qué desactivar dispositivos en vez de eliminarlos?** Los dispositivos pueden tener validaciones registradas (FK). Eliminarlos rompería el historial de auditoría.
+
+**Respuesta 200**:
+```json
+{ "mail": "ex-funcionario@example.com", "rol": "USUARIO_FINAL" }
+```
+
+---
+
 ## POST /usuarios/sectores
 
 **¿Qué hace?** Asigna el funcionario autenticado a sectores de un evento.

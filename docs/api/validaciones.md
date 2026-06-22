@@ -97,9 +97,11 @@ ORDER BY timestamp_val DESC
 
 El scanner del funcionario (página `/funcionario/scanner`) tiene dos modos:
 1. **Cámara**: usa `Html5Qrcode` para leer QRs con la cámara del dispositivo
-2. **Código manual**: input de texto donde se escribe el `codigo_hash` directamente
+2. **Código manual**: input de texto donde se pega el `codigo_hash` directamente
 
 Ambos modos llaman al mismo endpoint `POST /validaciones/` con el mismo body.
+
+**Importante sobre el código manual**: el campo acepta el `codigo_hash` (hex de 64 chars), NO el UUID de la entrada. El hash se obtiene desde la pantalla de Mis Entradas del usuario (botón "Copiar" en la sección del QR). Al hacer clic en "Copiar" se regenera un QR fresco y se copia el hash — el funcionario tiene 30 segundos para pegarlo.
 
 Resultado visual:
 - **VÁLIDA** (verde): entrada aceptada, se anima con pantalla verde

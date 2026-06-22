@@ -52,7 +52,7 @@ export default function StadiumDrawer({ estadio, onClose, onUpdated }) {
         exit={{ opacity: 0 }}
         onClick={onClose}
         style={{
-          position: 'fixed', inset: 0, zIndex: 40,
+          position: 'fixed', inset: 0, zIndex: 110,
           background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)',
         }}
       />
@@ -64,7 +64,7 @@ export default function StadiumDrawer({ estadio, onClose, onUpdated }) {
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
         style={{
-          position: 'fixed', right: 0, top: 0, bottom: 0, zIndex: 50,
+          position: 'fixed', right: 0, top: 64, bottom: 0, zIndex: 120,
           width: 'min(660px, 100vw)',
           background: 'rgba(10, 10, 18, 0.97)',
           borderLeft: '1px solid rgba(201,162,39,0.3)',

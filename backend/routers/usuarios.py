@@ -164,6 +164,26 @@ def promover_funcionario(
     return {"mail": mail, "rol": "FUNCIONARIO", "numero_legajo": numero_legajo}
 
 
+@router.patch("/{mail}/dar-de-baja", status_code=status.HTTP_200_OK)
+def dar_de_baja_funcionario(mail: str, cursor=Depends(get_db), _=Depends(require_admin)):
+    cursor.execute("SELECT mail, rol FROM Usuario WHERE mail = %s", (mail,))
+    usuario = cursor.fetchone()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if usuario["rol"] != "FUNCIONARIO":
+        raise HTTPException(status_code=409, detail="El usuario no es funcionario")
+
+    cursor.execute("DELETE FROM FuncionarioSectorEvento WHERE funcionario_mail = %s", (mail,))
+    cursor.execute("UPDATE Dispositivo SET activo = FALSE WHERE funcionario_mail = %s", (mail,))
+    cursor.execute("DELETE FROM Funcionario WHERE usuario_mail = %s", (mail,))
+    cursor.execute("UPDATE Usuario SET rol = 'USUARIO_FINAL' WHERE mail = %s", (mail,))
+    cursor.execute(
+        "INSERT INTO UsuarioFinal (usuario_mail, saldo) VALUES (%s, 0)",
+        (mail,),
+    )
+    return {"mail": mail, "rol": "USUARIO_FINAL"}
+
+
 @router.post("/sectores")
 def asignar_sector_funcionario(evento_id: str, id_sectores: list[int], user=Depends(require_funcionario), db=Depends(get_db)):
     

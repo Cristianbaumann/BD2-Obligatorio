@@ -66,6 +66,42 @@ def listar_asignaciones(evento_id: str | None = None, db=Depends(get_db), _=Depe
     return db.fetchall()
 
 
+class AsignacionPatch(BaseModel):
+    sector_id: int
+
+
+@router.patch("/{id}", status_code=status.HTTP_200_OK)
+def actualizar_asignacion(id: int, body: AsignacionPatch, db=Depends(get_db), _=Depends(require_admin)):
+    db.execute(
+        "SELECT id, evento_id, funcionario_mail FROM FuncionarioSectorEvento WHERE id = %s", (id,)
+    )
+    asig = db.fetchone()
+    if not asig:
+        raise HTTPException(status_code=404, detail="Asignación no encontrada")
+
+    db.execute(
+        "SELECT 1 FROM EventoSector WHERE evento_id = %s AND sector_id = %s",
+        (asig["evento_id"], body.sector_id),
+    )
+    if not db.fetchone():
+        raise HTTPException(status_code=404, detail="El sector no existe en ese evento")
+
+    db.execute(
+        "UPDATE FuncionarioSectorEvento SET sector_id = %s WHERE id = %s",
+        (body.sector_id, id),
+    )
+    db.execute(
+        """SELECT fse.id, fse.funcionario_mail, fse.evento_id, fse.sector_id,
+                  u.nombre, u.apellido, s.nombre AS sector_nombre
+           FROM FuncionarioSectorEvento fse
+           JOIN Usuario u ON u.mail = fse.funcionario_mail
+           JOIN Sector s ON s.id = fse.sector_id
+           WHERE fse.id = %s""",
+        (id,),
+    )
+    return db.fetchone()
+
+
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_asignacion(id: int, db=Depends(get_db), _=Depends(require_admin)):
     db.execute("SELECT id FROM FuncionarioSectorEvento WHERE id = %s", (id,))

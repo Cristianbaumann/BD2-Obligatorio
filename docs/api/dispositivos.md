@@ -70,12 +70,42 @@ WHERE funcionario_mail = ? AND activo = TRUE
 
 ## DELETE /dispositivos/{id}
 
-**¿Qué hace?** Elimina un dispositivo del sistema.
+**¿Qué hace?** Elimina o desactiva un dispositivo según si tiene historial de validaciones.
 
 **Acceso**: ADMIN
 
 **Proceso**:
 1. Verifica que el dispositivo exista → 404
-2. `DELETE FROM Dispositivo WHERE id = ?`
+2. Consulta si tiene validaciones registradas:
+   ```sql
+   SELECT COUNT(*) AS cnt FROM Validacion WHERE dispositivo_id = ?
+   ```
+3. **Sin validaciones** → `DELETE FROM Dispositivo` (eliminación definitiva). Responde `{ "deactivated": false }`
+4. **Con validaciones** → `UPDATE Dispositivo SET activo = FALSE` (baja lógica). Responde `{ "deactivated": true }`
 
-**Nota**: un dispositivo eliminado ya no puede usarse en validaciones (el paso 1 de `/validaciones/` verifica que exista y esté activo).
+**¿Por qué no eliminar si tiene validaciones?** Las validaciones son registros de auditoría. Eliminar el dispositivo rompería la FK con `Validacion` y destruiría el historial de quién escaneó qué entrada con qué dispositivo.
+
+**Respuesta 200**:
+```json
+{ "detail": "Dispositivo eliminado", "deactivated": false }
+// o
+{ "detail": "Dispositivo desactivado", "deactivated": true }
+```
+
+---
+
+## PATCH /dispositivos/{id}/activar
+
+**¿Qué hace?** Reactiva un dispositivo previamente desactivado.
+
+**Acceso**: ADMIN
+
+**Proceso**:
+1. Verifica que el dispositivo exista → 404
+2. Verifica que esté inactivo → 409 si ya está activo
+3. `UPDATE Dispositivo SET activo = TRUE WHERE id = ?`
+
+**Respuesta 200**:
+```json
+{ "detail": "Dispositivo activado" }
+```

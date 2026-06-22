@@ -237,3 +237,44 @@ const badgeStyle = cancelado
 - **BLOQUEADA**: el evento fue cancelado (no se puede usar, pero se recibe el reembolso)
 
 Los botones de QR y Transferir solo aparecen cuando `isActiva === true`.
+
+---
+
+## QRCountdown — Componente de QR con countdown
+
+`QRCountdown` gestiona el ciclo de vida del QR de una entrada activa:
+
+1. Al montarse: llama `GET /qr/{entradaId}` → recibe `{ qr_url, codigo_hash }`
+2. Muestra el QR como imagen + countdown circular de 30 segundos
+3. Al llegar a 0: regenera automáticamente (el QR anterior queda inactivo)
+4. Debajo del QR muestra el `codigo_hash` con botón **Copiar**
+
+**Botón Copiar**: al hacer clic regenera el QR (nuevo hash, 30s frescos) y copia el hash al clipboard. Esto garantiza que el funcionario siempre recibe un hash con el tiempo máximo disponible.
+
+**¿Por qué regenerar al copiar?** Si el usuario copia un hash con 5s restantes, el funcionario no llegaría a pegarlo a tiempo. Regenerar en el momento del clic maximiza la ventana de uso.
+
+---
+
+## Admin — Página de Funcionarios
+
+La página `admin/Funcionarios.jsx` tiene tres funcionalidades principales:
+
+**1. Lista de funcionarios con asignaciones**
+Carga `GET /asignaciones` al inicio (sin filtro). Cada card de funcionario muestra un badge con el número de sectores asignados. Al hacer clic en la card, se expande mostrando cada asignación: partido, fecha y sector. Desde el acordeón expandido se puede:
+- **Editar sector** (ícono lápiz): carga los sectores del evento vía `GET /reportes/disponibilidad_evento/{id}` y muestra un select inline. Al confirmar llama `PATCH /asignaciones/{id}`
+- **Eliminar asignación** (ícono papelera): llama `DELETE /asignaciones/{id}`
+
+**2. Dar de baja** (ícono `UserMinus`)
+Botón en cada card. Pide confirmación y llama `PATCH /usuarios/{mail}/dar-de-baja`. El funcionario desaparece de la lista y sus asignaciones se eliminan.
+
+**3. Asignar sector** (form existente)
+Panel desplegable para asignar un funcionario a un sector de un evento. Al seleccionar evento carga sectores disponibles. Las asignaciones creadas/eliminadas desde este panel se sincronizan con la lista global.
+
+---
+
+## Admin — Página de Dispositivos
+
+`admin/Dispositivos.jsx` gestiona los dispositivos de escaneo:
+
+- **Eliminar** (Trash2): si el dispositivo no tiene validaciones → delete definitivo. Si tiene → pasa a INACTIVO (badge rojo). El frontend detecta cuál fue con el campo `deactivated` en la respuesta
+- **Reactivar** (RotateCcw, verde): solo visible en dispositivos INACTIVOS. Llama `PATCH /dispositivos/{id}/activar`

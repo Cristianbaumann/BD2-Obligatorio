@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Smartphone, Plus, Trash2, X } from 'lucide-react'
+import { Smartphone, Plus, Trash2, X, RotateCcw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import Layout from '../../components/Layout'
@@ -14,6 +14,7 @@ export default function AdminDispositivos() {
   const [selectedMail, setSelectedMail] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [eliminando, setEliminando] = useState(null)
+  const [activando, setActivando] = useState(null)
 
   const loadDispositivos = () =>
     api.get('/dispositivos/').then(r => setDispositivos(r.data)).catch(() => {})
@@ -46,12 +47,30 @@ export default function AdminDispositivos() {
     }
   }
 
+  async function handleActivar(id) {
+    setActivando(id)
+    try {
+      await api.patch(`/dispositivos/${id}/activar`)
+      setDispositivos(prev => prev.map(d => d.id === id ? { ...d, activo: true } : d))
+      toast.success('Dispositivo activado')
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Error al activar')
+    } finally {
+      setActivando(null)
+    }
+  }
+
   async function handleEliminar(id) {
     setEliminando(id)
     try {
-      await api.delete(`/dispositivos/${id}`)
-      setDispositivos(prev => prev.filter(d => d.id !== id))
-      toast.success('Dispositivo eliminado')
+      const res = await api.delete(`/dispositivos/${id}`)
+      if (res.data?.deactivated) {
+        setDispositivos(prev => prev.map(d => d.id === id ? { ...d, activo: false } : d))
+        toast.success('Dispositivo desactivado (tiene validaciones registradas)')
+      } else {
+        setDispositivos(prev => prev.filter(d => d.id !== id))
+        toast.success('Dispositivo eliminado')
+      }
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Error al eliminar')
     } finally {
@@ -143,9 +162,20 @@ export default function AdminDispositivos() {
                   }}>
                     {d.activo ? 'ACTIVO' : 'INACTIVO'}
                   </span>
+                  {!d.activo && (
+                    <button
+                      onClick={() => handleActivar(d.id)}
+                      disabled={activando === d.id}
+                      title="Reactivar dispositivo"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#22c55e', opacity: activando === d.id ? 0.4 : 0.8, padding: '4px' }}
+                    >
+                      <RotateCcw size={15} />
+                    </button>
+                  )}
                   <button
                     onClick={() => handleEliminar(d.id)}
                     disabled={eliminando === d.id}
+                    title="Eliminar dispositivo"
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', opacity: eliminando === d.id ? 0.4 : 0.7, padding: '4px' }}
                   >
                     <Trash2 size={15} />

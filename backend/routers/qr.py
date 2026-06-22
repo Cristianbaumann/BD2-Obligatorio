@@ -46,5 +46,5 @@ def get_qr(entrada_id: str, user=Depends(require_any_role), db=Depends(get_db)):
 
     qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=220x220&data={encodeURIComponent(codigo_hash)}"
 
-    return {"qr_url": qr_url}
+    return {"qr_url": qr_url, "codigo_hash": codigo_hash}
 

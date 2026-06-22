@@ -63,8 +63,25 @@ def delete_dispositivo(
     if db.fetchone() is None:
         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
 
+    db.execute("SELECT COUNT(*) AS cnt FROM Validacion WHERE dispositivo_id = %s", (id,))
+    if db.fetchone()["cnt"] > 0:
+        db.execute("UPDATE Dispositivo SET activo = FALSE WHERE id = %s", (id,))
+        return {"detail": "Dispositivo desactivado", "deactivated": True}
+
     db.execute("DELETE FROM Dispositivo WHERE id = %s", (id,))
-    return {"detail": "Dispositivo eliminado"}
+    return {"detail": "Dispositivo eliminado", "deactivated": False}
+
+
+@router.patch("/{id}/activar", status_code=status.HTTP_200_OK)
+def activar_dispositivo(id: str, db=Depends(get_db), _=Depends(require_admin)):
+    db.execute("SELECT id, activo FROM Dispositivo WHERE id = %s", (id,))
+    row = db.fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+    if row["activo"]:
+        raise HTTPException(status_code=409, detail="El dispositivo ya está activo")
+    db.execute("UPDATE Dispositivo SET activo = TRUE WHERE id = %s", (id,))
+    return {"detail": "Dispositivo activado"}
 
 
 @router.get("/autorizados", response_model=list[DispositivoOut])  # ← ruta simplificada
