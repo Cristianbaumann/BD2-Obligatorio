@@ -1,230 +1,255 @@
-# 🎫 Sistema de Ticketing — Mundial 2026
+# Sistema de Ticketing — Mundial 2026
 
-Sistema integral de comercialización, transferencia y validación de entradas para los partidos del Mundial 2026. Desarrollado como trabajo obligatorio para la materia **Bases de Datos II** — Universidad Católica del Uruguay, 2026.
-
----
-
-## 📋 Descripción
-
-La plataforma implementa un modelo de **Entrada Dinámica**, donde el activo digital no es una imagen estática sino un token que muta periódicamente para evitar el fraude y la reventa no autorizada. El sistema mantiene un registro histórico completo de la cadena de custodia de cada entrada, desde su emisión original hasta su validación final en puerta.
+Sistema integral de comercialización, transferencia y validación de entradas para los partidos del Mundial 2026. Trabajo obligatorio para **Bases de Datos II** — Universidad Católica del Uruguay, 2026. Grupo 5.
 
 ---
 
-## 🛠️ Stack Tecnológico
+## Stack Tecnológico
 
 | Capa | Tecnología |
 |------|-----------|
-| Backend | Python 3.11 + FastAPI |
-| Base de datos | MySQL 8 |
-| Queries | SQL|
-| Autenticación | JWT (python-jose + passlib) |
+| Backend | Python 3.12 + FastAPI |
+| Base de datos | MySQL 8 (servidor remoto `mysql.reto-ucu.net`) |
+| Queries | SQL puro — sin ORM |
+| Autenticación | Auth0 (ROPG) + JWT custom claims |
 | Validación | Pydantic v2 |
 | Servidor | Uvicorn |
-| Frontend | React + JavaScript |
+| Frontend | React + Vite + JavaScript |
+| Estado frontend | Zustand |
 
 ---
 
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
-ticketing/
-├── main.py                  # Instancia FastAPI, routers, CORS
-├── database.py              # Conexión MySQL, get_connection(), get_db()
-├── requirements.txt         # Dependencias
-├── .env.example             # Variables de entorno de ejemplo
-├── .gitignore
+BD2-Obligatorio/
+├── Readme.md
 │
-├── core/
-│   ├── config.py            # Configuración desde variables de entorno
-│   └── security.py          # JWT: crear/verificar token, hashear password
+├── backend/
+│   ├── main.py                  # FastAPI app, routers, CORS
+│   ├── database.py              # get_connection(), get_db() (cursor dictionary)
+│   ├── requirements.txt
+│   ├── .env                     # Variables de entorno (no commitear)
+│   ├── AUTH0_SETUP.md           # Guía completa Auth0 + troubleshooting
+│   │
+│   ├── core/
+│   │   ├── config.py            # Settings desde .env (pydantic-settings)
+│   │   └── security.py          # decode_auth0_token(), constantes de roles
+│   │
+│   ├── dependencies/
+│   │   └── auth.py              # get_current_user, require_admin, require_funcionario
+│   │
+│   ├── routers/
+│   │   ├── auth.py              # POST /auth/register, /auth/login
+│   │   ├── usuarios.py          # GET/PUT /usuarios/me, verificación, funcionarios
+│   │   ├── estadios.py          # CRUD estadios y sectores (admin)
+│   │   ├── equipos.py           # GET equipos
+│   │   ├── eventos.py           # CRUD eventos, GET /eventos/mi-pais (admin)
+│   │   ├── ventas.py            # Carrito, PATCH /ventas/{id}/pagar
+│   │   ├── entradas.py          # GET /entradas/mis-entradas, QR, historial
+│   │   ├── transferencias.py    # Iniciar / aceptar / rechazar transferencia
+│   │   ├── validaciones.py      # POST /validaciones (escaneo en puerta)
+│   │   ├── dispositivos.py      # Gestión de dispositivos de escaneo
+│   │   ├── asignaciones.py      # Asignación funcionario ↔ sector/evento
+│   │   ├── reportes.py          # Rankings y estadísticas
+│   │   └── qr.py                # Generación de QR
+│   │
+│   ├── schemas/                 # Modelos Pydantic (request / response)
+│   ├── services/
+│   │   └── auth0_service.py     # Management API: crear/eliminar usuarios Auth0
+│   │
+│   └── sql/
+│       ├── 01_schemas.sql       # DDL completo (tablas, FKs, índices)
+│       ├── 02_seed_data.sql     # Datos iniciales (equipos, estadios, eventos, sectores)
+│       └── 03_admin_seed.sql    # Bootstrap admins + template para promover usuarios
 │
-├── routers/                 # Endpoints agrupados por módulo
-│   ├── auth.py              # Registro y login
-│   ├── usuarios.py          # Perfil y gestión de usuarios
-│   ├── estadios.py          # Estadios y sectores
-│   ├── equipos.py           # Equipos participantes
-│   ├── eventos.py           # Eventos (partidos)
-│   ├── ventas.py            # Compra de entradas
-│   ├── entradas.py          # Consulta de entradas
-│   ├── transferencias.py    # Transferencia entre usuarios
-│   ├── qr.py                # Generación de QR dinámico
-│   ├── validaciones.py      # Validación de acceso en puerta
-│   ├── dispositivos.py      # Dispositivos de escaneo autorizados
-│   └── reportes.py          # Estadísticas y rankings
-│
-├── schemas/                 # Modelos Pydantic (request/response)
-├── services/                # Lógica de negocio
-├── middleware/
-│   └── auth_middleware.py   # Dependencias JWT: get_current_user, require_admin
-│
-├── sql/
-│   └── schema.sql           # Schema completo de MySQL
-│
-└── frontend/                # Interfaz de usuario — React + JavaScript
+└── frontend/
+    ├── src/
+    │   ├── App.jsx              # Rutas React Router
+    │   ├── services/api.js      # Axios con baseURL y auth header automático
+    │   ├── store/
+    │   │   ├── authStore.js     # Zustand: token, rol, mail, estado_verificacion
+    │   │   └── eventosStore.js
+    │   ├── pages/
+    │   │   ├── usuario/         # Eventos, ComprarEntrada, Carrito, MisEntradas, Transferir, Perfil
+    │   │   ├── admin/           # Dashboard, Estadios, Eventos, Funcionarios, Dispositivos, Configuracion
+    │   │   └── funcionario/     # Dashboard, Scanner
+    │   └── components/          # Layout, Navbar, MatchCard, QRCountdown, StadiumSelector…
+    └── package.json
 ```
 
 ---
 
-## ⚙️ Instalación y Configuración
+## Configuración y Arranque
 
-### Prerrequisitos
-
-- Python 3.11+
-- MySQL 8.0+
-- pip
-
-### 1. Clonar el repositorio
-
-```bash
-git clone https://github.com/[usuario]/ticketing-mundial-2026.git
-cd ticketing-mundial-2026
-```
-
-### 2. Crear entorno virtual e instalar dependencias
-
-```bash
-python -m venv venv
-source venv/bin/activate        # Linux/Mac
-venv\Scripts\activate           # Windows
-
-pip install -r requirements.txt
-```
-
-### 3. Configurar variables de entorno
-
-```bash
-cp .env.example .env
-```
-
-Editar `.env` con los valores correspondientes:
+### Variables de entorno (`backend/.env`)
 
 ```env
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=tu_password
-DB_NAME=ticketing_db
-JWT_SECRET_KEY=tu_clave_secreta
-JWT_ALGORITHM=HS256
-JWT_EXPIRE_MINUTES=60
+# Base de datos
+DB_HOST=mysql.reto-ucu.net
+DB_PORT=50006
+DB_USER=ic_g5_admin
+DB_PASSWORD=<password>
+DB_NAME=IC_Grupo5
+
+# Auth0
+AUTH0_DOMAIN="dev-ks16wg37q4clzdxd.us.auth0.com"
+AUTH0_MGMT_CLIENT_ID="<M2M client id>"
+AUTH0_MGMT_CLIENT_SECRET="<M2M client secret>"
+AUTH0_CLIENT_ID="<Regular Web App client id>"
+AUTH0_CLIENT_SECRET="<Regular Web App client secret>"
+AUTH0_AUDIENCE="https://api.mundial2026"
 ```
 
-### 4. Crear la base de datos
+### Backend
 
 ```bash
-mysql -u root -p < sql/schema.sql
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
 ```
 
-### 5. Levantar el servidor
+Swagger UI disponible en `http://localhost:8000/docs`
+
+### Frontend
 
 ```bash
-uvicorn main:app --reload
+cd frontend
+npm install
+npm run dev
 ```
 
-La API queda disponible en `http://localhost:8000`  
-La documentación interactiva (Swagger) en `http://localhost:8000/docs`
+App disponible en `http://localhost:5173`
+
+### Base de datos
+
+Ejecutar en orden (solo la primera vez):
+
+```bash
+# 1. Crear tablas
+mysql -h mysql.reto-ucu.net -P 50006 -u ic_g5_admin -p IC_Grupo5 < backend/sql/01_schemas.sql
+
+# 2. Cargar datos iniciales
+mysql -h mysql.reto-ucu.net -P 50006 -u ic_g5_admin -p IC_Grupo5 < backend/sql/02_seed_data.sql
+
+# 3. Crear admins bootstrap
+mysql -h mysql.reto-ucu.net -P 50006 -u ic_g5_admin -p IC_Grupo5 < backend/sql/03_admin_seed.sql
+```
 
 ---
 
-## 🔑 Roles y Permisos
-
-El sistema implementa control de acceso basado en roles (RBAC):
+## Roles y Permisos
 
 | Rol | Descripción | Permisos principales |
 |-----|-------------|---------------------|
-| `ADMIN` | Administrador por País Sede | Gestionar estadios, eventos, usuarios y reportes |
+| `ADMIN` | Administrador por país sede | Gestionar estadios, eventos y funcionarios de su país |
 | `FUNCIONARIO` | Validador en puerta | Escanear y validar entradas con dispositivo autorizado |
-| `USUARIO_FINAL` | Consumidor | Comprar, transferir y visualizar entradas |
+| `USUARIO_FINAL` | Comprador | Comprar, transferir y visualizar sus entradas |
+
+El rol vive en **dos lugares sincronizados**: `app_metadata.rol` en Auth0 y `Usuario.rol` en la BD.
+
+### Promover usuario a ADMIN (3 pasos obligatorios)
+
+1. Auth0 Dashboard → Users → Edit → App Metadata: `{ "rol": "ADMIN" }`
+2. `UPDATE Usuario SET rol = 'ADMIN' WHERE mail = 'usuario@ejemplo.com';`
+3. `INSERT INTO Admin (usuario_mail, pais_sede, fecha_asignacion_cargo) VALUES ('usuario@ejemplo.com', 'Canada', CURDATE());`
+
+Ver `backend/sql/03_admin_seed.sql` para el ejemplo listo para ejecutar.  
+Ver `backend/AUTH0_SETUP.md` para la guía completa de Auth0.
 
 ---
 
-## 📡 Endpoints Principales
+## Endpoints Principales
 
 ### Auth
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| POST | `/api/auth/register` | Registro de nuevo usuario |
-| POST | `/api/auth/login` | Login y obtención de JWT |
+| POST | `/auth/register` | Registro — crea usuario en Auth0 y BD |
+| POST | `/auth/login` | Login ROPG — devuelve JWT de Auth0 |
+| GET  | `/auth/me` | Info del token actual |
 
 ### Usuarios
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/api/usuarios/me` | Perfil del usuario autenticado |
-| PUT | `/api/usuarios/me` | Actualizar datos personales |
+| GET  | `/usuarios/me` | Perfil propio |
+| PUT  | `/usuarios/me` | Actualizar dirección y teléfonos |
+| GET  | `/usuarios/` | Listar usuarios con filtros *(Admin)* |
+| PATCH | `/usuarios/{mail}/verificar` | Verificar identidad |
+| PATCH | `/usuarios/{mail}/promover-funcionario` | Promover a funcionario *(Admin)* |
 
 ### Eventos
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/api/eventos` | Listar eventos disponibles |
-| POST | `/api/eventos` | Crear evento *(Admin)* |
-| GET | `/api/eventos/{id}` | Detalle de un evento |
+| GET  | `/eventos/` | Listar eventos públicos (excluye cancelados) |
+| GET  | `/eventos/mi-pais` | Eventos del país del admin autenticado |
+| POST | `/eventos/` | Crear evento *(Admin)* |
+| PUT  | `/eventos/{id}` | Editar evento *(Admin)* |
+| POST | `/eventos/{id}/cancelar` | Cancelar evento *(Admin)* |
 
-### Ventas y Entradas
+### Ventas y Carrito
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| POST | `/api/ventas` | Comprar entradas (máx. 5 por transacción) |
-| GET | `/api/ventas/mis-ventas` | Historial de compras |
-| GET | `/api/entradas/mis-entradas` | Entradas en posesión actual |
+| POST  | `/ventas/` | Agregar entradas al carrito (máx. 5 total) |
+| GET   | `/ventas/carrito` | Ver carrito activo (TTL 15 min) |
+| PATCH | `/ventas/{id}/pagar` | Pagar — PENDIENTE → CONFIRMADA → PAGA (15 s delay background) |
+| DELETE | `/ventas/{id}` | Eliminar item del carrito |
+| GET   | `/ventas/mis-ventas` | Historial de compras |
+
+Estados de venta: `1=PENDIENTE` (carrito) · `2=CONFIRMADA` (procesando) · `3=PAGA` (activa)
+
+### Entradas
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/entradas/mis-entradas` | Entradas del usuario (solo estado ≥ 2) |
+| GET | `/entradas/{id}` | Detalle de una entrada |
+| GET | `/entradas/{id}/qr` | QR activo de la entrada |
+| GET | `/entradas/{id}/historial` | Cadena de custodia completa |
 
 ### Transferencias
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| POST | `/api/transferencias` | Iniciar transferencia a otro usuario |
-| PATCH | `/api/transferencias/{id}/aceptar` | Aceptar transferencia recibida |
-| PATCH | `/api/transferencias/{id}/rechazar` | Rechazar transferencia recibida |
-| GET | `/api/entradas/{id}/historial` | Cadena de custodia completa |
+| POST  | `/transferencias/` | Transferir entrada directamente (por mail) |
+| POST  | `/transferencias/solicitar` | Solicitar transferencia |
+| PATCH | `/transferencias/{id}/aceptar` | Aceptar transferencia recibida |
+| PATCH | `/transferencias/{id}/rechazar` | Rechazar transferencia |
+| GET   | `/transferencias/recibidas` | Solicitudes pendientes recibidas |
 
 ### Validación
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/api/entradas/{id}/qr` | Obtener QR activo (se regenera cada 30s) |
-| POST | `/api/validaciones` | Escanear y validar entrada *(Funcionario)* |
+| POST | `/validaciones/` | Escanear QR y marcar entrada como consumida *(Funcionario)* |
+
+### Estadios y Sectores
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET  | `/estadios/` | Listar estadios del país del admin |
+| POST | `/estadios/` | Crear estadio *(Admin)* |
+| POST | `/estadios/{...}/sectores` | Agregar sector a estadio *(Admin)* |
 
 ### Reportes
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/api/reportes/eventos-mas-vendidos` | Ranking de eventos por entradas vendidas |
-| GET | `/api/reportes/mayores-compradores` | Ranking de usuarios compradores |
-| GET | `/api/reportes/disponibilidad/{eventoId}` | Disponibilidad por sector en tiempo real |
+| GET | `/reportes/eventos-mas-vendidos` | Ranking por entradas vendidas |
+| GET | `/reportes/mayores-compradores` | Ranking de compradores |
+| GET | `/reportes/disponibilidad/{eventoId}` | Disponibilidad por sector en tiempo real |
 
 ---
 
-## 🗄️ Modelo de Datos
+## Lógica de Negocio Clave
 
-El schema implementa las siguientes entidades principales:
-
-`Usuario` · `Admin` · `Funcionario` · `UsuarioFinal` · `UsuarioTelefono` · `Estadio` · `Sector` · `Equipo` · `Evento` · `EventoSector` · `Estado` · `ComisionHistorica` · `Venta` · `Entrada` · `Transferencia` · `Qr` · `Dispositivo` · `Validacion` · `FuncionarioSectorEvento`
-
-El modelo completo (MER, Modelo Lógico y scripts SQL) se encuentra documentado en el informe del trabajo.
-
----
-
-## 🔒 Lógica de Negocio Clave
-
-- **Máximo 5 entradas** por transacción de compra
-- **Máximo 3 transferencias** por entrada antes de su validación
-- **QR dinámico** que se regenera cada 30 segundos mientras la app está activa
-- **No superposición** de eventos en el mismo estadio a la misma hora
-- **Tasa de comisión variable** — cada venta guarda snapshot de la tasa vigente
-- **Validación irreversible** — una entrada consumida no puede reactivarse
-- **Dispositivos autorizados** — solo dispositivos vinculados a un funcionario pueden validar
+- **Carrito con TTL** — reserva expira a los 15 minutos; entradas se liberan automáticamente
+- **Máximo 5 entradas** por usuario en el carrito en simultáneo
+- **Estados de venta** — PENDIENTE → CONFIRMADA (15 s simulados) → PAGA; solo PAGA habilita acciones
+- **Tasa de comisión variable** — cada venta guarda snapshot de la tasa vigente al momento de compra
+- **Transferencia verificada** — solo entradas de ventas PAGA pueden transferirse; máximo 3 transferencias por entrada
+- **QR por entrada** — se genera al solicitarlo; una entrada consumida no puede reactivarse
+- **Jurisdicción por país** — cada admin gestiona únicamente estadios y eventos de su `pais_sede`
+- **Eventos cancelados** — no aparecen en búsqueda pública ni permiten compra
+- **Identidad verificada** — solo usuarios con `estado_verificacion = VERIFICADO` pueden comprar
 
 ---
 
-## 📄 Documentación adicional
-
-La documentación completa del proyecto incluye:
-
-- Evolución del MER 
-- Modelo Lógico
-- Scripts de creación de base de datos
-- Diagrama de componentes
-- Justificación de decisiones de diseño
-
-
----
-
-## 📅 Fechas de Entrega
+## Fechas de Entrega
 
 | Entregable | Fecha |
 |------------|-------|

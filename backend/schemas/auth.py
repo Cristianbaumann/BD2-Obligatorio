@@ -17,6 +17,18 @@ class RegisterRequest(BaseModel):
     dir_codigo_postal: Optional[str] = None
     telefonos: List[str] = []
 
+    @field_validator(
+        "nombre", "apellido",
+        "doc_pais", "doc_tipo", "doc_numero",
+        "dir_pais", "dir_localidad", "dir_calle", "dir_numero",
+        mode="before",
+    )
+    @classmethod
+    def strip_strings(cls, v):
+        if isinstance(v, str):
+            return v.strip()
+        return v
+
     @field_validator("telefonos")
     @classmethod
     def al_menos_un_telefono(cls, v):

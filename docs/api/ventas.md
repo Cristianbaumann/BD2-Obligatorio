@@ -99,12 +99,17 @@ Esta estrategia hace 2 queries fijas independientemente de cuántas ventas tenga
 2. Verifica que esté en estado PENDIENTE (1)
 3. Verifica que no haya expirado: `SELECT fecha > NOW() - INTERVAL 15 MINUTE AS vigente`
    - Si expiró → 410 Gone
-4. `UPDATE Venta SET estado_id = 2` (PENDIENTE → CONFIRMADA)
-5. `UPDATE Venta SET estado_id = 3` (CONFIRMADA → PAGA)
+4. `UPDATE Venta SET estado_id = 2` (PENDIENTE → CONFIRMADA) — se ejecuta **sincrónicamente**
+5. Se registra un **background task** que duerme 15 segundos y luego ejecuta `UPDATE Venta SET estado_id = 3` (CONFIRMADA → PAGA) con su propia conexión a la BD
+6. El endpoint devuelve **inmediatamente** con `estado_id = 2`
+
+**¿Por qué background task?** Permite que el frontend navegue a "Mis Entradas" de inmediato y muestre el estado CONFIRMADA (badge azul "PROCESANDO") mientras el proceso de pago finaliza. Pasados los 15 segundos, la entrada pasa a PAGA y el usuario puede usarla. Esto hace visible el estado intermedio en la BD para fines de demostración.
+
+**¿Por qué propia conexión en el background task?** FastAPI cierra la conexión del request cuando termina el handler. El background task se ejecuta después del response, por lo que no puede usar la conexión del `Depends(get_db)` — necesita abrir y cerrar su propia conexión.
 
 **¿Por qué HTTP 410 Gone?** El código 410 significa "recurso ya no existe y nunca volverá". Es semánticamente más preciso que 400 para indicar que el carrito expiró y no puede recuperarse.
 
-**Respuesta 200**: venta con estado_id = 3 (PAGA).
+**Respuesta 200**: venta con `estado_id = 2` (CONFIRMADA). Pasados 15 segundos el estado en BD pasa a 3 (PAGA).
 
 ---
 

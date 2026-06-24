@@ -20,7 +20,7 @@ def create_transferencia(body: TransferenciaCreate, user=Depends(get_current_use
     if not db.fetchone():
         raise HTTPException(status_code=404, detail="El destinatario no está registrado en el sistema")
 
-    db.execute("SELECT titular_mail, consumido FROM Entrada WHERE id = %s FOR UPDATE", (entrada_id,))
+    db.execute("SELECT titular_mail, consumido, venta_id FROM Entrada WHERE id = %s FOR UPDATE", (entrada_id,))
     entrada = db.fetchone()
     if not entrada:
         raise HTTPException(status_code=404, detail="Entrada no encontrada")
@@ -30,6 +30,11 @@ def create_transferencia(body: TransferenciaCreate, user=Depends(get_current_use
         raise HTTPException(status_code=403, detail="Solo el titular puede transferir esta entrada")
     if entrada["titular_mail"] == mail_destino:
         raise HTTPException(status_code=400, detail="No podés transferirte una entrada a vos mismo")
+
+    db.execute("SELECT estado_id FROM Venta WHERE id = %s", (entrada["venta_id"],))
+    venta = db.fetchone()
+    if not venta or venta["estado_id"] != 3:
+        raise HTTPException(status_code=400, detail="No se puede transferir una entrada cuya compra no está pagada")
 
     db.execute("SELECT COUNT(*) AS cnt FROM Transferencia WHERE entrada_id = %s AND estado = 'ACEPTADA'", (entrada_id,))
     if db.fetchone()["cnt"] >= 3:
@@ -83,7 +88,7 @@ def solicitar_transferencia(entrada_id: int, email_destinatario: str, user=Depen
     if not db.fetchone():
         raise HTTPException(status_code=404, detail="El destinatario no está registrado en el sistema")
 
-    db.execute("SELECT titular_mail, consumido FROM Entrada WHERE id = %s FOR UPDATE", (entrada_id,))
+    db.execute("SELECT titular_mail, consumido, venta_id FROM Entrada WHERE id = %s FOR UPDATE", (entrada_id,))
     resultado = db.fetchone()
     if resultado is None:
         raise HTTPException(status_code=404, detail="Entrada no encontrada")
@@ -93,6 +98,11 @@ def solicitar_transferencia(entrada_id: int, email_destinatario: str, user=Depen
         raise HTTPException(status_code=403, detail="Solo el titular puede solicitar una transferencia")
     if email_destinatario == user["mail"]:
         raise HTTPException(status_code=400, detail="No podés transferirte una entrada a vos mismo")
+
+    db.execute("SELECT estado_id FROM Venta WHERE id = %s", (resultado["venta_id"],))
+    venta = db.fetchone()
+    if not venta or venta["estado_id"] != 3:
+        raise HTTPException(status_code=400, detail="No se puede transferir una entrada cuya compra no está pagada")
 
     db.execute("SELECT COUNT(*) AS contador FROM Transferencia WHERE entrada_id = %s AND estado = 'ACEPTADA'", (entrada_id,))
     if db.fetchone()["contador"] >= 3:

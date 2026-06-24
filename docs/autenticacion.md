@@ -187,6 +187,32 @@ def create_estadio(
 
 ---
 
+## Promover a ADMIN (3 pasos obligatorios)
+
+El rol ADMIN requiere actualizar tres lugares distintos. Omitir cualquiera produce errores silenciosos:
+
+**Paso 1 — Auth0 Dashboard**
+Users → seleccionar usuario → Edit → App Metadata: `{ "rol": "ADMIN" }`
+Sin esto el token sigue diciendo `USUARIO_FINAL` y `get_current_user` rechaza la request.
+
+**Paso 2 — BD: rol + borrar perfil de usuario final**
+```sql
+UPDATE Usuario SET rol = 'ADMIN' WHERE mail = 'usuario@ejemplo.com';
+DELETE FROM UsuarioFinal WHERE usuario_mail = 'usuario@ejemplo.com';
+```
+Sin el UPDATE, `require_admin` devuelve 403 aunque el token diga ADMIN (la autorización lee el rol de la BD, no del token).
+
+**Paso 3 — BD: crear perfil de admin con país de jurisdicción**
+```sql
+INSERT INTO Admin (usuario_mail, pais_sede, fecha_asignacion_cargo)
+VALUES ('usuario@ejemplo.com', 'Canada', CURDATE());
+```
+Sin esto, cualquier endpoint que llame `_get_admin_pais_sede()` (estadios, eventos, reportes) devuelve 403 "El usuario no tiene perfil de administrador", aunque el rol sea correcto.
+
+Ver `backend/sql/03_admin_seed.sql` para el ejemplo listo para ejecutar.
+
+---
+
 ## Promover a funcionario
 
 Cuando un admin promueve a un usuario a FUNCIONARIO:

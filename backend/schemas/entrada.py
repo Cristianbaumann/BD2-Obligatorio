@@ -22,6 +22,7 @@ class EventoInfo(BaseModel):
 class EntradaConInfoOut(BaseModel):
     id: str
     venta_id: str
+    venta_estado_id: int
     titular_mail: str
     costo: float
     evento_id: str

@@ -35,6 +35,7 @@ JOIN Estadio est      ON est.dir_pais = e.estadio_pais
                      AND est.dir_localidad = e.estadio_localidad
                      AND est.dir_calle = e.estadio_calle
                      AND est.dir_numero = e.estadio_numero
+WHERE e.cancelado = FALSE
 ORDER BY e.fecha
 ```
 

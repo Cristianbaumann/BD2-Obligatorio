@@ -68,9 +68,32 @@ Agrega el rol como custom claim en el access token. Sin esto, el backend rechaza
 El rol vive en `app_metadata.rol` de cada usuario en Auth0 **y** en `Usuario.rol` de la BD. Ambos deben estar sincronizados.
 
 - Register vía API → siempre crea `USUARIO_FINAL` (automático, el backend lo setea)
-- Promover a ADMIN o FUNCIONARIO → manual:
-  1. Auth0 Dashboard → Users → Edit → App Metadata: `{ "rol": "ADMIN" }`
-  2. BD: `UPDATE Usuario SET rol = 'ADMIN' WHERE mail = '...';`
+- Promover a ADMIN → **3 pasos obligatorios** (los 3, en orden):
+
+  **Paso 1 — Auth0 Dashboard**
+  Users → seleccionar usuario → Edit → App Metadata:
+  ```json
+  { "rol": "ADMIN" }
+  ```
+
+  **Paso 2 — BD: actualizar rol y borrar perfil de usuario final**
+  ```sql
+  UPDATE Usuario SET rol = 'ADMIN' WHERE mail = 'usuario@ejemplo.com';
+  DELETE FROM UsuarioFinal WHERE usuario_mail = 'usuario@ejemplo.com';
+  ```
+
+  **Paso 3 — BD: crear perfil de admin con país de jurisdicción**
+  ```sql
+  INSERT INTO Admin (usuario_mail, pais_sede, fecha_asignacion_cargo)
+  VALUES ('usuario@ejemplo.com', 'Canada', CURDATE());
+  ```
+  > Sin este paso, **todos** los endpoints de admin (mi-pais, estadios, eventos) devuelven 403
+  > "El usuario no tiene perfil de administrador", aunque el rol sea correcto.
+
+  El `pais_sede` debe coincidir (ignorando mayúsculas y tildes) con el campo `dir_pais`
+  de los estadios que el admin va a gestionar.
+
+- Promover a FUNCIONARIO → usar el endpoint `PATCH /usuarios/{mail}/promover-funcionario` (solo admin).
 
 ### Usuarios creados via Management API
 - Siempre incluir `"email_verified": true` en el body del POST a `/api/v2/users`

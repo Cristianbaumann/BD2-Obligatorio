@@ -16,16 +16,18 @@
 
 **Proceso**:
 1. Verifica que el `destino_mail` exista en `Usuario` → 404
-2. Bloqueo de fila: `SELECT titular_mail, consumido FROM Entrada WHERE id = ? FOR UPDATE`
+2. Bloqueo de fila: `SELECT titular_mail, consumido, venta_id FROM Entrada WHERE id = ? FOR UPDATE`
    - Si no existe → 404
    - Si está consumida → 400
    - Si el usuario no es el titular → 403
    - Si se transfiere a sí mismo → 400
-3. `SELECT COUNT(*) FROM Transferencia WHERE entrada_id = ? AND estado = 'ACEPTADA'`
+3. Verifica que la venta esté PAGA: `SELECT estado_id FROM Venta WHERE id = venta_id`
+   - Si `estado_id != 3` → 400 "No se puede transferir una entrada cuya compra no está pagada"
+4. `SELECT COUNT(*) FROM Transferencia WHERE entrada_id = ? AND estado = 'ACEPTADA'`
    - Si ya tiene 3 transferencias aceptadas → 400 (límite máximo)
-4. `SELECT COUNT(*) FROM Transferencia WHERE entrada_id = ? AND estado = 'PENDIENTE'`
+5. `SELECT COUNT(*) FROM Transferencia WHERE entrada_id = ? AND estado = 'PENDIENTE'`
    - Si ya hay una pendiente → 400
-5. `INSERT INTO Transferencia (..., estado = 'PENDIENTE')`
+6. `INSERT INTO Transferencia (..., estado = 'PENDIENTE')`
 
 **`FOR UPDATE`**: bloqueo pesimista de la fila. Si dos requests concurrentes intentan transferir la misma entrada, uno obtiene el bloqueo y el otro espera. Cuando el segundo toma el bloqueo, el titular ya cambió o ya hay una pendiente → falla limpiamente.
 

@@ -236,13 +236,16 @@ function TransferModal({ modal, onClose, onSuccess }) {
 function EntradaRow({ entrada, onTransfer }) {
   const [open, setOpen] = useState(false)
   const cancelado = !!entrada.evento?.cancelado
-  const isActiva = !entrada.consumido && !cancelado
+  const estadoVenta = entrada.venta_estado_id
+  const isActiva = !entrada.consumido && !cancelado && estadoVenta === 3
 
   const badgeStyle = cancelado
     ? { bg: 'rgba(249,115,22,0.12)', color: '#f97316', border: 'rgba(249,115,22,0.3)', label: 'BLOQUEADA' }
     : entrada.consumido
       ? { bg: 'rgba(239,68,68,0.12)', color: '#ef4444', border: 'rgba(239,68,68,0.3)', label: 'CONSUMIDA' }
-      : { bg: 'rgba(34,197,94,0.12)', color: '#22c55e', border: 'rgba(34,197,94,0.3)', label: 'ACTIVA' }
+      : estadoVenta === 2
+        ? { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6', border: 'rgba(59,130,246,0.3)', label: 'PROCESANDO' }
+        : { bg: 'rgba(34,197,94,0.12)', color: '#22c55e', border: 'rgba(34,197,94,0.3)', label: 'ACTIVA' }
 
   return (
     <div style={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}>

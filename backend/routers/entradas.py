@@ -27,6 +27,7 @@ def mis_entradas(
     db.execute(
         """SELECT e.id, e.venta_id, e.titular_mail, e.costo,
                   e.evento_id, e.sector_id, e.consumido,
+                  v.estado_id           AS venta_estado_id,
                   ev.fecha              AS evento_fecha,
                   ev.cancelado          AS evento_cancelado,
                   el.nombre              AS equipo_local_nombre,
@@ -38,6 +39,7 @@ def mis_entradas(
                   q.creado_en            AS qr_creado_en,
                   q.activo               AS qr_activo
            FROM Entrada e
+           JOIN Venta    v   ON v.id   = e.venta_id AND v.estado_id >= 2
            JOIN Evento   ev  ON ev.id  = e.evento_id
            JOIN Equipo   el  ON el.id  = ev.equipo_local_id
            JOIN Equipo   ev2 ON ev2.id = ev.equipo_visitante_id
@@ -57,6 +59,7 @@ def mis_entradas(
         EntradaConInfoOut(
             id=r["id"],
             venta_id=r["venta_id"],
+            venta_estado_id=r["venta_estado_id"],
             titular_mail=r["titular_mail"],
             costo=float(r["costo"]),
             evento_id=r["evento_id"],
