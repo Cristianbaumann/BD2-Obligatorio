@@ -47,6 +47,24 @@ ORDER BY e.fecha
 
 ---
 
+## GET /eventos/mi-pais
+
+**¿Qué hace?** Lista los eventos del país del admin autenticado (filtrado por jurisdicción).
+
+**Acceso**: ADMIN (requiere token)
+
+**Proceso**:
+1. Obtiene `pais_sede` del admin
+2. Filtra eventos donde `estadio_pais = pais_sede`
+
+**SQL**: misma query enriquecida que `GET /eventos/` pero con `WHERE e.estadio_pais = ?`.
+
+**Respuesta 200**: array de eventos del país del admin, ordenados por fecha.
+
+**¿Por qué existe?** El admin solo puede gestionar eventos de su país. Este endpoint garantiza que el panel admin muestre solo los eventos relevantes, sin que el frontend necesite conocer el país del admin.
+
+---
+
 ## POST /eventos/
 
 **¿Qué hace?** Crea un nuevo evento (partido).

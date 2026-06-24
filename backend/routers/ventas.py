@@ -81,6 +81,13 @@ def create_venta(
         if item.cantidad < 1:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cada cantidad debe ser al menos 1")
 
+        db.execute("SELECT cancelado FROM Evento WHERE id = %s", (item.evento_id,))
+        ev_row = db.fetchone()
+        if not ev_row:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Evento {item.evento_id} no encontrado")
+        if ev_row["cancelado"]:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El evento está cancelado")
+
         db.execute(
             """SELECT es.costo, s.capacidad
                FROM EventoSector es
@@ -203,14 +210,8 @@ def update_comision(body: dict, db=Depends(get_db), _=Depends(require_admin)):
     if nueva_tasa is None or not (0 <= float(nueva_tasa) <= 1):
         raise HTTPException(status_code=422, detail="tasa debe ser un número entre 0 y 1")
     hoy = datetime.now().date().isoformat()
-    db.execute(
-        "UPDATE ComisionHistorica SET fecha_hasta = %s WHERE fecha_hasta IS NULL",
-        (hoy,),
-    )
-    db.execute(
-        "INSERT INTO ComisionHistorica (tasa, fecha_desde, fecha_hasta) VALUES (%s, %s, NULL)",
-        (float(nueva_tasa), hoy),
-    )
+    db.execute("UPDATE ComisionHistorica SET fecha_hasta = %s WHERE fecha_hasta IS NULL", (hoy,))
+    db.execute("INSERT INTO ComisionHistorica (tasa, fecha_desde, fecha_hasta) VALUES (%s, %s, NULL)", (float(nueva_tasa), hoy))
     return {"tasa": float(nueva_tasa), "fecha_desde": hoy}
 
 

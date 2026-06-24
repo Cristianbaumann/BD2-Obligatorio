@@ -107,8 +107,17 @@ El paso 5 invalida el QR del titular anterior. El nuevo titular generará su pro
 
 ---
 
-## Notas sobre duplicación en el código
+## POST /transferencias/solicitar
 
-El archivo `transferencias.py` contiene tanto `POST /transferencias/` como `POST /transferencias/solicitar`. Son esencialmente la misma funcionalidad. El endpoint `/solicitar` fue una versión anterior y quedó en el código. El activo y correcto es `POST /transferencias/` (usa el body JSON estándar).
+Endpoint alternativo para iniciar una transferencia (query params en lugar de body JSON).
 
-También hay `GET /transferencias/` y `GET /transferencias/{id}` vacíos (solo `pass`). Son placeholders no implementados.
+**Query params**: `entrada_id` (int), `email_destinatario` (string)
+
+**Validaciones** (idénticas a `POST /transferencias/`):
+1. Verifica que `email_destinatario` exista en `Usuario` → 404 `"El destinatario no está registrado en el sistema"`
+2. Verifica titular, consumido, jurisdicción
+3. Bloquea auto-transferencia → 400 `"No podés transferirte una entrada a vos mismo"`
+4. Cuenta solo transferencias ACEPTADAS (no rechazadas ni pendientes) → límite de 3
+5. Bloquea si hay pendiente activa
+
+**Nota**: `POST /transferencias/` (body JSON) es el endpoint principal que usa la UI. `/solicitar` existe como alternativa por query params.

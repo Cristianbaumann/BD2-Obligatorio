@@ -197,8 +197,7 @@ CREATE TABLE ComisionHistorica (
     tasa        DECIMAL(5,4) NOT NULL,
     fecha_desde DATE         NOT NULL,
     fecha_hasta DATE,
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_tasa_vigente (fecha_hasta)
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB;
 
 INSERT INTO ComisionHistorica (tasa, fecha_desde, fecha_hasta)

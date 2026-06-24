@@ -67,6 +67,46 @@ def list_eventos(db=Depends(get_db)):
     return db.fetchall()
 
 
+@router.get("/mi-pais", response_model=list[EventoRichOut], summary="Eventos del país del admin autenticado")
+def list_eventos_mi_pais(db=Depends(get_db), admin=Depends(require_admin)):
+    pais_sede = _get_admin_pais_sede(db, admin["mail"])
+    db.execute(
+        """
+        SELECT
+            e.id,
+            e.fecha,
+            e.cancelado,
+            eq_local.nombre  AS equipo_local,
+            eq_visit.nombre  AS equipo_visitante,
+            est.nombre       AS estadio,
+            (SELECT MIN(es2.costo)
+               FROM EventoSector es2
+              WHERE es2.evento_id = e.id)                              AS precio_minimo,
+            (SELECT SUM(s2.capacidad)
+               FROM EventoSector es2
+               JOIN Sector s2 ON s2.id = es2.sector_id
+              WHERE es2.evento_id = e.id)                              AS capacidad,
+            (SELECT SUM(s2.capacidad)
+               FROM EventoSector es2
+               JOIN Sector s2 ON s2.id = es2.sector_id
+              WHERE es2.evento_id = e.id)
+            - (SELECT COUNT(*) FROM Entrada ent2
+               WHERE ent2.evento_id = e.id)                            AS entradas_disponibles
+        FROM Evento e
+        JOIN Equipo  eq_local ON eq_local.id = e.equipo_local_id
+        JOIN Equipo  eq_visit ON eq_visit.id = e.equipo_visitante_id
+        JOIN Estadio est      ON est.dir_pais      = e.estadio_pais
+                             AND est.dir_localidad = e.estadio_localidad
+                             AND est.dir_calle     = e.estadio_calle
+                             AND est.dir_numero    = e.estadio_numero
+        WHERE e.estadio_pais = %s
+        ORDER BY e.fecha
+        """,
+        (pais_sede,),
+    )
+    return db.fetchall()
+
+
 @router.post(
     "/",
     response_model=EventoOut,

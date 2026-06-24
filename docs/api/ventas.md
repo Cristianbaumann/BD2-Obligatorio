@@ -23,10 +23,11 @@
 4. Cuenta entradas en el carrito existente
 5. Verifica que `existentes + nuevas <= 5`
 6. Para cada item:
-   a. Obtiene `costo` y `capacidad` del sector en ese evento: `SELECT es.costo, s.capacidad FROM EventoSector es JOIN Sector s ON ...`
-   b. Cuenta entradas ya vendidas (sin carritos expirados): `SELECT COUNT(*) FROM Entrada JOIN Venta ... AND NOT (estado_id = 1 AND fecha < hace 15 min)`
-   c. `disponibles = capacidad - vendidas`
-   d. Si `cantidad > disponibles` → 409 Conflict
+   a. Verifica que el evento no esté cancelado: `SELECT cancelado FROM Evento WHERE id = ?` → 400 si `cancelado = TRUE`
+   b. Obtiene `costo` y `capacidad` del sector en ese evento: `SELECT es.costo, s.capacidad FROM EventoSector es JOIN Sector s ON ...`
+   c. Cuenta entradas ya vendidas (sin carritos expirados): `SELECT COUNT(*) FROM Entrada JOIN Venta ... AND NOT (estado_id = 1 AND fecha < hace 15 min)`
+   d. `disponibles = capacidad - vendidas`
+   e. Si `cantidad > disponibles` → 409 Conflict
 7. Si no había carrito: obtiene tasa vigente, genera UUID, INSERT en `Venta`
 8. INSERT en `Entrada` por cada unidad pedida (N inserts individuales para N entradas)
 9. Recalcula el precio: `SUM(costo de TODAS las entradas) * (1 + tasa)` → UPDATE en Venta
@@ -193,3 +194,5 @@ Validación: `0 <= tasa <= 1`.
 2. Abre la nueva: `INSERT INTO ComisionHistorica (tasa, fecha_desde, fecha_hasta) VALUES (nueva, hoy, NULL)`
 
 Las ventas ya creadas tienen su tasa congelada en `Venta.tasa_comision` y no se ven afectadas.
+
+**Nota importante**: se puede cambiar la tasa varias veces el mismo día. La tabla `ComisionHistorica` no tiene restricción UNIQUE en `fecha_hasta`, por lo que pueden existir múltiples registros con la misma `fecha_desde`. Todos los cambios quedan registrados en el historial.

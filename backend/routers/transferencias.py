@@ -79,7 +79,11 @@ def get_transferencia(id: str):
 
 @router.post("/solicitar")
 def solicitar_transferencia(entrada_id: int, email_destinatario: str, user=Depends(require_any_role), db=Depends(get_db)):
-    db.execute("SELECT titular_mail,consumido FROM Entrada WHERE id = %s FOR UPDATE", (entrada_id,))
+    db.execute("SELECT mail FROM Usuario WHERE mail = %s", (email_destinatario,))
+    if not db.fetchone():
+        raise HTTPException(status_code=404, detail="El destinatario no está registrado en el sistema")
+
+    db.execute("SELECT titular_mail, consumido FROM Entrada WHERE id = %s FOR UPDATE", (entrada_id,))
     resultado = db.fetchone()
     if resultado is None:
         raise HTTPException(status_code=404, detail="Entrada no encontrada")
@@ -87,10 +91,12 @@ def solicitar_transferencia(entrada_id: int, email_destinatario: str, user=Depen
         raise HTTPException(status_code=400, detail="No se puede transferir una entrada consumida")
     if resultado["titular_mail"] != user["mail"]:
         raise HTTPException(status_code=403, detail="Solo el titular puede solicitar una transferencia")
+    if email_destinatario == user["mail"]:
+        raise HTTPException(status_code=400, detail="No podés transferirte una entrada a vos mismo")
 
-    db.execute("SELECT COUNT(*) AS contador FROM Transferencia WHERE entrada_id = %s", (entrada_id,))
+    db.execute("SELECT COUNT(*) AS contador FROM Transferencia WHERE entrada_id = %s AND estado = 'ACEPTADA'", (entrada_id,))
     if db.fetchone()["contador"] >= 3:
-        raise HTTPException(status_code=400, detail="Esta entrada ya ha sido transferida 3 veces")
+        raise HTTPException(status_code=400, detail="Esta entrada ya fue transferida 3 veces (límite máximo)")
 
     db.execute("SELECT COUNT(*) AS cnt FROM Transferencia WHERE entrada_id = %s AND estado = 'PENDIENTE'", (entrada_id,))
     if db.fetchone()["cnt"] > 0:

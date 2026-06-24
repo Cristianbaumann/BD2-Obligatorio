@@ -1,5 +1,6 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from mysql.connector import IntegrityError
 from database import get_db
 from dependencies.auth import get_current_user, require_admin, require_funcionario
 from schemas.usuario import MeOut, RolEnum, EstadoVerificacionEnum, UsuarioOut, UsuarioUpdate
@@ -206,9 +207,7 @@ def asignar_sector_funcionario(evento_id: str, id_sectores: list[int], user=Depe
     try:
         for id_sector in id_sectores:
             db.execute(query, (user["mail"], id_sector, evento_id))
-    except Exception as e:
-        if "Duplicate entry" in str(e):
-            raise HTTPException(status_code=409, detail="El funcionario ya está asignado a uno de esos sectores")
-        raise HTTPException(status_code=500, detail="Error interno al asignar sector al funcionario")
+    except IntegrityError:
+        raise HTTPException(status_code=409, detail="El funcionario ya está asignado a uno de esos sectores en este evento")
 
     return {"message": "Sectores asignados exitosamente"}

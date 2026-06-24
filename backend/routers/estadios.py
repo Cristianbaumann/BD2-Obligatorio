@@ -1,6 +1,6 @@
 import unicodedata
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status
 from mysql.connector import IntegrityError
 
 from database import get_db
@@ -48,11 +48,7 @@ def create_estadio(
     if not admin_row:
         raise HTTPException(status_code=403, detail="El usuario no tiene perfil de administrador")
 
-    if _norm(admin_row["pais_sede"]) != _norm(estadio.dir_pais):
-        raise HTTPException(
-            status_code=403,
-            detail="El admin solo puede registrar estadios en su país sede",
-        )
+    pais = admin_row["pais_sede"]
 
     try:
         cursor.execute(
@@ -61,7 +57,7 @@ def create_estadio(
             VALUES (%s, %s, %s, %s, %s, %s)
             """,
             (
-                estadio.dir_pais,
+                pais,
                 estadio.dir_localidad,
                 estadio.dir_calle,
                 estadio.dir_numero,
@@ -75,23 +71,19 @@ def create_estadio(
             detail="Ya existe un estadio con esa dirección",
         ) from exc
 
-    return estadio.model_dump()
+    return {**estadio.model_dump(), "dir_pais": pais}
 
 
 @router.get("/", response_model=List[EstadioOut])
-def list_estadios(
-    pais: Optional[str] = Query(None, description="Filtrar por país"),
-    cursor=Depends(get_db),
-):
-    if pais:
-        cursor.execute(
-            "SELECT dir_pais, dir_localidad, dir_calle, dir_numero, nombre, aforo FROM Estadio WHERE dir_pais = %s ORDER BY nombre",
-            (pais,),
-        )
-    else:
-        cursor.execute(
-            "SELECT dir_pais, dir_localidad, dir_calle, dir_numero, nombre, aforo FROM Estadio ORDER BY nombre"
-        )
+def list_estadios(cursor=Depends(get_db), admin=Depends(require_admin)):
+    cursor.execute("SELECT pais_sede FROM Admin WHERE usuario_mail = %s", (admin["mail"],))
+    row = cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=403, detail="Sin perfil de administrador")
+    cursor.execute(
+        "SELECT dir_pais, dir_localidad, dir_calle, dir_numero, nombre, aforo FROM Estadio WHERE dir_pais = %s ORDER BY nombre",
+        (row["pais_sede"],),
+    )
     return cursor.fetchall()
 
 
@@ -378,16 +370,18 @@ def delete_estadio(nombre: str, cursor=Depends(get_db), admin=Depends(require_ad
         SELECT COUNT(*) AS cnt FROM Evento
         WHERE estadio_pais = %s AND estadio_localidad = %s
           AND estadio_calle = %s AND estadio_numero = %s
+          AND cancelado = FALSE
         """,
         (estadio["dir_pais"], estadio["dir_localidad"], estadio["dir_calle"], estadio["dir_numero"]),
     )
     if cursor.fetchone()["cnt"] > 0:
-        raise HTTPException(status_code=409, detail="El estadio tiene eventos asociados y no puede eliminarse")
+        raise HTTPException(status_code=409, detail="No se puede eliminar: el estadio tiene eventos activos. Cancelá los eventos primero.")
 
     cursor.execute(
         "DELETE FROM Estadio WHERE dir_pais = %s AND dir_localidad = %s AND dir_calle = %s AND dir_numero = %s",
         (estadio["dir_pais"], estadio["dir_localidad"], estadio["dir_calle"], estadio["dir_numero"]),
     )
+
 
 
 @router.get("/{nombre}", response_model=EstadioDetail)

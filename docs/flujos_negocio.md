@@ -44,9 +44,11 @@ Antes de que los usuarios puedan comprar, el admin debe configurar:
 `POST /equipos/` — define los equipos que juegan en el mundial
 
 ### 3b. Crear estadios
-`POST /estadios/` — solo el admin del país del estadio puede crearlo
+`POST /estadios/` — solo el admin de ese país puede crearlo
+- El campo `dir_pais` se toma automáticamente del `pais_sede` del admin — no se envía en el body
 - Dirección completa como PK
 - Aforo total
+- `GET /estadios/` también es admin-only y devuelve solo los estadios del país del admin
 
 ### 3c. Crear sectores dentro del estadio
 `POST /estadios/{nombre}/sectores` — subdivision del estadio (tribuna norte, VIP, etc.)
@@ -152,12 +154,12 @@ POST /transferencias/
   body: { entrada_id, destino_mail }
 ```
 
-1. Verifica que el destinatario esté registrado
-2. Verifica que el solicitante sea el titular actual
-3. Verifica que la entrada no esté consumida
-4. Verifica que no se transfiera a sí mismo
-5. Verifica que no haya 3 transferencias ACEPTADAS (límite de reventas)
-6. Verifica que no haya una transferencia PENDIENTE activa
+1. Verifica que `destino_mail` exista en `Usuario` → 404 (no se puede transferir a alguien que no está registrado)
+2. Verifica que el solicitante sea el titular actual → 403
+3. Verifica que la entrada no esté consumida → 400
+4. Verifica que no sea auto-transferencia (origen == destino) → 400
+5. Cuenta transferencias con `estado = 'ACEPTADA'` — si ya hay 3 → 400 (límite de reventas). Las rechazadas NO cuentan.
+6. Verifica que no haya una transferencia PENDIENTE activa → 400
 7. Crea la transferencia en estado PENDIENTE
 
 **El destinatario luego:**
@@ -226,6 +228,8 @@ La tasa de comisión es global y se aplica a todas las ventas. Hay un historial 
 2. Crea la nueva: `INSERT INTO ComisionHistorica (tasa, fecha_desde, fecha_hasta) VALUES (nueva, hoy, NULL)`
 
 Las ventas ya creadas tienen su `tasa_comision` guardada y no se ven afectadas.
+
+**Se puede cambiar varias veces el mismo día**: `ComisionHistorica` no tiene `UNIQUE` en `fecha_hasta`. Múltiples cambios el mismo día generan múltiples filas, todas con la misma `fecha_desde`, y quedan registradas en el historial. La vigente siempre es la que tiene `fecha_hasta IS NULL`.
 
 ---
 

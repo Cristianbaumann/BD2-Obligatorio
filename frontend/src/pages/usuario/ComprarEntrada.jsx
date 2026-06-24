@@ -171,25 +171,24 @@ export default function ComprarEntrada() {
                           position: 'relative',
                         }}
                       >
-                        {soldOut && (
-                          <span style={{
-                            position: 'absolute', top: '12px', right: '12px',
-                            fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px',
-                            color: '#9CA3AF', background: 'rgba(55,65,81,0.4)',
-                            border: '1px solid rgba(156,163,175,0.2)',
-                            borderRadius: '4px', padding: '2px 7px',
-                          }}>
-                            AGOTADO
-                          </span>
-                        )}
-
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                           <p style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '20px', color: highlighted ? '#C9A227' : '#fff', letterSpacing: '1px', lineHeight: 1 }}>
                             {s.nombre}
                           </p>
-                          <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '14px', color: highlighted ? '#C9A227' : 'rgba(255,255,255,0.7)', fontWeight: 700, marginLeft: '8px', flexShrink: 0 }}>
-                            ${s.costo.toLocaleString('es-UY', { minimumFractionDigits: 0 })}/ent
-                          </p>
+                          {soldOut ? (
+                            <span style={{
+                              fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px',
+                              color: '#9CA3AF', background: 'rgba(55,65,81,0.4)',
+                              border: '1px solid rgba(156,163,175,0.2)',
+                              borderRadius: '4px', padding: '2px 7px', flexShrink: 0, marginLeft: '8px',
+                            }}>
+                              AGOTADO
+                            </span>
+                          ) : (
+                            <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '14px', color: highlighted ? '#C9A227' : 'rgba(255,255,255,0.7)', fontWeight: 700, marginLeft: '8px', flexShrink: 0 }}>
+                              ${s.costo.toLocaleString('es-UY', { minimumFractionDigits: 0 })}/ent
+                            </p>
+                          )}
                         </div>
 
                         {/* Progress bar — filled = ocupado */}

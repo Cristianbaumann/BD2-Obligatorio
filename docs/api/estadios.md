@@ -2,22 +2,25 @@
 
 ## GET /estadios/
 
-**¿Qué hace?** Lista todos los estadios. Con filtro opcional por país.
+**¿Qué hace?** Lista los estadios del país del admin autenticado.
 
-**Acceso**: público
+**Acceso**: ADMIN (requiere token)
 
-**Query params**:
-- `pais` (opcional): filtra por `dir_pais`
+**Proceso**:
+1. Obtiene `pais_sede` del admin desde la tabla `Admin`
+2. Filtra por ese país automáticamente
 
 **SQL**:
 ```sql
+SELECT pais_sede FROM Admin WHERE usuario_mail = ?
+-- luego:
 SELECT dir_pais, dir_localidad, dir_calle, dir_numero, nombre, aforo
-FROM Estadio
-[WHERE dir_pais = ?]
-ORDER BY nombre
+FROM Estadio WHERE dir_pais = ? ORDER BY nombre
 ```
 
-**Respuesta 200**: array de estadios.
+**Respuesta 200**: array de estadios del país del admin. No se devuelven estadios de otros países.
+
+**¿Por qué no es público?** Los usuarios finales no tienen una pantalla de estadios. Solo los admins necesitan ver estadios para crear eventos y sectores. Hacer el endpoint admin-only también garantiza que al crear un evento, el dropdown de estadios solo muestre opciones válidas para el admin.
 
 ---
 
@@ -30,7 +33,6 @@ ORDER BY nombre
 **Body**:
 ```json
 {
-  "dir_pais": "Uruguay",
   "dir_localidad": "Montevideo",
   "dir_calle": "Av. Luis A. de Herrera",
   "dir_numero": "4444",
@@ -39,11 +41,12 @@ ORDER BY nombre
 }
 ```
 
+**Nota**: `dir_pais` NO se envía en el body. El backend lo toma automáticamente del `pais_sede` del admin autenticado. El admin solo puede crear estadios en su propio país.
+
 **Proceso**:
-1. Obtiene `pais_sede` del admin desde la tabla `Admin`
-2. Compara `_norm(pais_sede)` con `_norm(dir_pais)` → 403 si no coinciden
-3. INSERT en `Estadio`
-4. Si ya existe un estadio con esa dirección → IntegrityError → 409
+1. Obtiene `pais_sede` del admin desde la tabla `Admin` → lo usa como `dir_pais`
+2. INSERT en `Estadio` con `dir_pais = pais_sede`
+3. Si ya existe un estadio con esa dirección → IntegrityError → 409
 
 **`_norm()` — normalización de strings**:
 ```python
@@ -124,15 +127,18 @@ Si `nuevo_aforo < total_sectores` → 409.
 
 **Proceso**:
 1. Verifica jurisdicción (mismo `_norm()`)
-2. Verifica que no tenga eventos asociados:
+2. Verifica que no tenga eventos **activos** (no cancelados):
    ```sql
    SELECT COUNT(*) AS cnt FROM Evento
    WHERE estadio_pais = ? AND estadio_localidad = ? AND estadio_calle = ? AND estadio_numero = ?
+     AND cancelado = FALSE
    ```
-   Si tiene eventos → 409 (no se puede eliminar)
+   Si tiene eventos activos → 409 `"No se puede eliminar: el estadio tiene eventos activos. Cancelá los eventos primero."`
 3. DELETE con la PK compuesta (dirección). Los sectores se eliminan por CASCADE.
 
-**¿Por qué no eliminar si tiene eventos?** Los eventos tienen entradas vendidas, validaciones, etc. Eliminar el estadio rompería la integridad referencial y dejaría datos huérfanos.
+**Regla**: si el estadio solo tiene eventos cancelados (o ningún evento), se puede eliminar. Los eventos cancelados ya procesaron sus reembolsos y sus entradas están bloqueadas — no hay impacto funcional al eliminar el estadio.
+
+**¿Por qué bloquear si hay eventos activos?** Un evento activo puede tener entradas vendidas no consumidas todavía. Eliminar el estadio rompería esas referencias.
 
 ---
 

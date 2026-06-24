@@ -12,7 +12,6 @@ class EstadioUpdate(BaseModel):
 
 
 class EstadioCreate(BaseModel):
-    dir_pais: str
     dir_localidad: str
     dir_calle: str
     dir_numero: str

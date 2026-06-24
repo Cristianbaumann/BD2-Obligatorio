@@ -18,10 +18,11 @@ Las asignaciones conectan un funcionario con un sector específico de un evento.
 ```
 
 **Proceso**:
-1. Verifica que el funcionario exista en `Funcionario`
-2. Verifica que el sector esté habilitado en el evento (`EventoSector`)
+1. Verifica que el funcionario exista en `Funcionario` → 404
+2. Verifica que el sector esté habilitado en el evento (`EventoSector`) → 404
 3. `INSERT INTO FuncionarioSectorEvento (funcionario_mail, evento_id, sector_id)`
-4. Recupera el ID autoincremental con `SELECT LAST_INSERT_ID()`
+4. Si el funcionario ya estaba asignado a ese sector en ese evento (viola `UNIQUE KEY uq_fse`) → 409 `"El funcionario ya está asignado a ese sector en este evento"`
+5. Recupera el ID autoincremental con `SELECT LAST_INSERT_ID()`
 
 **Respuesta 201**:
 ```json

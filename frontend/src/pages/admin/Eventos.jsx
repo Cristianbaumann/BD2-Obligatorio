@@ -35,7 +35,7 @@ export default function AdminEventos() {
   const [loadingSectores, setLoadingSectores] = useState(false)
 
   const loadEventos = () =>
-    api.get('/eventos').then(r => setEventos(r.data)).catch(() => {}).finally(() => setLoading(false))
+    api.get('/eventos/mi-pais').then(r => setEventos(r.data)).catch(() => {}).finally(() => setLoading(false))
 
   useEffect(() => {
     loadEventos()

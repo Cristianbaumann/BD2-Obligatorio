@@ -6,7 +6,7 @@ import api from '../../services/api'
 import Layout from '../../components/Layout'
 import StadiumDrawer from '../../components/admin/StadiumDrawer'
 import { ADMIN_LINKS } from '../../constants/navLinks'
-const EMPTY_FORM = { nombre: '', dir_pais: '', dir_localidad: '', dir_calle: '', dir_numero: '', aforo: '' }
+const EMPTY_FORM = { nombre: '', dir_localidad: '', dir_calle: '', dir_numero: '', aforo: '' }
 
 function extractDetail(err) {
   const detail = err.response?.data?.detail
@@ -41,13 +41,14 @@ export default function AdminEstadios() {
     }
   }
 
+  const adminPais = estadios[0]?.dir_pais || null
+
   const FIELDS = [
-    { f: 'nombre',       l: 'Nombre',     t: 'text',   ph: 'Estadio Lusail' },
-    { f: 'dir_pais',     l: 'País',       t: 'text',   ph: 'Qatar' },
-    { f: 'dir_localidad',l: 'Ciudad',     t: 'text',   ph: 'Lusail' },
-    { f: 'dir_calle',    l: 'Calle',      t: 'text',   ph: 'Lusail Blvd' },
-    { f: 'dir_numero',   l: 'Número',     t: 'text',   ph: '1' },
-    { f: 'aforo',        l: 'Aforo',      t: 'number', ph: '80000' },
+    { f: 'nombre',        l: 'Nombre', t: 'text',   ph: 'Estadio Lusail' },
+    { f: 'dir_localidad', l: 'Ciudad', t: 'text',   ph: 'Lusail' },
+    { f: 'dir_calle',     l: 'Calle',  t: 'text',   ph: 'Lusail Blvd' },
+    { f: 'dir_numero',    l: 'Número', t: 'text',   ph: '1' },
+    { f: 'aforo',         l: 'Aforo',  t: 'number', ph: '80000' },
   ]
 
   return (
@@ -71,6 +72,12 @@ export default function AdminEstadios() {
           >
             <h3 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '22px', color: '#C9A227', marginBottom: '20px' }}>Nuevo Estadio</h3>
             <form onSubmit={handleCreate} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px', letterSpacing: '0.5px' }}>PAÍS</label>
+                <div className="form-input" style={{ color: '#C9A227', fontWeight: 600 }}>
+                  {adminPais || 'Tu país sede (asignado automáticamente)'}
+                </div>
+              </div>
               {FIELDS.map(({ f, l, t, ph }) => (
                 <div key={f}>
                   <label style={{ display: 'block', fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px', letterSpacing: '0.5px' }}>{l}</label>

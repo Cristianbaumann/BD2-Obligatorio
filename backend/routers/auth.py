@@ -1,5 +1,6 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
+from mysql.connector import IntegrityError
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,11 @@ async def register(body: RegisterRequest, cursor=Depends(get_db)):
             "INSERT INTO UsuarioFinal (usuario_mail) VALUES (%s)",
             (body.email,),
         )
+    except IntegrityError as e:
+        await auth0_service.delete_user(auth0_id)
+        if "uq_documento" in str(e):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El documento ya está registrado en el sistema")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Datos de registro inválidos o duplicados")
     except Exception as e:
         logger.error("DB insert failed during register: %s", e, exc_info=True)
         await auth0_service.delete_user(auth0_id)

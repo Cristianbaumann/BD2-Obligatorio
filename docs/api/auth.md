@@ -50,7 +50,9 @@
 
 **Errores**:
 - 400: Email ya registrado / Password no cumple requisitos de Auth0
-- 500: Error al guardar en base de datos
+- 400: `"El documento ya está registrado en el sistema"` — cuando la combinación (doc_pais, doc_tipo, doc_numero) ya existe en la BD (viola `UNIQUE KEY uq_documento`). El usuario en Auth0 se elimina automáticamente para mantener consistencia.
+- 400: `"Datos de registro inválidos o duplicados"` — otra violación de integridad no esperada
+- 500: Error inesperado al guardar en base de datos (no de integridad)
 
 ---
 

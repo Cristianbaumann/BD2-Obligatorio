@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from mysql.connector import IntegrityError
 from database import get_db
 from dependencies.auth import require_admin
 
@@ -25,11 +26,14 @@ def crear_asignacion(body: AsignacionCreate, db=Depends(get_db), _=Depends(requi
     if not db.fetchone():
         raise HTTPException(status_code=404, detail="El sector no existe en ese evento")
 
-    db.execute(
-        """INSERT INTO FuncionarioSectorEvento (funcionario_mail, evento_id, sector_id)
-           VALUES (%s, %s, %s)""",
-        (body.funcionario_mail, body.evento_id, body.sector_id),
-    )
+    try:
+        db.execute(
+            """INSERT INTO FuncionarioSectorEvento (funcionario_mail, evento_id, sector_id)
+               VALUES (%s, %s, %s)""",
+            (body.funcionario_mail, body.evento_id, body.sector_id),
+        )
+    except IntegrityError:
+        raise HTTPException(status_code=409, detail="El funcionario ya está asignado a ese sector en este evento")
     db.execute("SELECT LAST_INSERT_ID() AS id")
     nuevo_id = db.fetchone()["id"]
 
