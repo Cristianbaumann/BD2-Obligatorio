@@ -99,10 +99,21 @@ POST /ventas/
 
 1. Verifica que la venta sea del usuario y esté PENDIENTE
 2. Verifica que el carrito no haya expirado (< 15 minutos desde `fecha`)
-3. Avanza el estado: PENDIENTE → CONFIRMADA → PAGA (dos UPDATE seguidos)
-4. Devuelve la venta pagada
+3. `UPDATE Venta SET estado_id = 2` (PENDIENTE → CONFIRMADA) — síncrono
+4. Registra un **background task** que duerme 15 segundos y luego actualiza a estado 3 (PAGA)
+5. Devuelve **inmediatamente** con la venta en estado CONFIRMADA (2)
 
-**¿Por qué dos UPDATE?** El estado CONFIRMADA es un estado intermedio de "reserva confirmada". Se usa para representar el flujo de pago en dos fases (common en e-commerce: confirmar → procesar pago). En la implementación actual se hacen los dos pasos seguidos, simulando el pago instantáneo.
+**Flujo de estados**:
+```
+PENDIENTE (1) → [pagar] → CONFIRMADA (2) → [15 seg background] → PAGA (3)
+```
+
+**¿Por qué este diseño?** Permite que el usuario vea la entrada aparecer en "Mis Entradas" con badge "PROCESANDO" (estado 2) de forma inmediata, sin esperar. Durante esos 15 segundos el estado intermedio es visible en la BD. Pasados los 15 segundos la entrada queda PAGA y habilita transferencia y QR.
+
+**Restricción de acciones por estado**:
+- Estado 1 (PENDIENTE): solo visible en el carrito, no aparece en "Mis Entradas"
+- Estado 2 (CONFIRMADA): aparece en "Mis Entradas" con badge "PROCESANDO", sin acciones
+- Estado 3 (PAGA): badge "ACTIVA", transferencia y QR habilitados
 
 ---
 

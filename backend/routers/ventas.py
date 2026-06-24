@@ -1,15 +1,28 @@
 import uuid
+import time
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
-from database import get_db
+from database import get_db, get_connection
 from dependencies.auth import get_current_user, require_admin
 from schemas.venta import VentaCreate, VentaOut, VentaEstadoUpdate, EntradaOut
 
 router = APIRouter(prefix="/ventas", tags=["ventas"])
 
 CART_TTL_MINUTES = 15
+
+
+def _finalizar_pago_background(venta_id: str):
+    time.sleep(15)
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE Venta SET estado_id = 3 WHERE id = %s", (venta_id,))
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
 
 
 def _cleanup_expired(db):
@@ -342,7 +355,7 @@ def get_carrito(db=Depends(get_db), user=Depends(get_current_user)):
     summary="Pagar una venta del carrito",
     description="El usuario paga su propia venta PENDIENTE. Avanza PENDIENTE → CONFIRMADA → PAGA.",
 )
-def pagar_venta(id: str, db=Depends(get_db), user=Depends(get_current_user)):
+def pagar_venta(id: str, background_tasks: BackgroundTasks, db=Depends(get_db), user=Depends(get_current_user)):
     db.execute(
         "SELECT id, usuario_mail, estado_id, fecha, precio, tasa_comision FROM Venta WHERE id = %s",
         (id,),
@@ -363,7 +376,7 @@ def pagar_venta(id: str, db=Depends(get_db), user=Depends(get_current_user)):
         raise HTTPException(status_code=status.HTTP_410_GONE, detail="La reserva expiró")
 
     db.execute("UPDATE Venta SET estado_id = 2 WHERE id = %s", (id,))
-    db.execute("UPDATE Venta SET estado_id = 3 WHERE id = %s", (id,))
+    background_tasks.add_task(_finalizar_pago_background, id)
 
     db.execute(
         """SELECT id, venta_id, titular_mail, costo, evento_id, sector_id, consumido
@@ -381,7 +394,7 @@ def pagar_venta(id: str, db=Depends(get_db), user=Depends(get_current_user)):
 
     return VentaOut(
         id=venta["id"], usuario_mail=venta["usuario_mail"], fecha=venta["fecha"],
-        estado_id=3, precio=float(venta["precio"]),
+        estado_id=2, precio=float(venta["precio"]),
         tasa_comision=float(venta["tasa_comision"]), entradas=entradas,
     )
 

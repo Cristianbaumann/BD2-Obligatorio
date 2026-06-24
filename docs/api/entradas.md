@@ -6,10 +6,11 @@
 
 **Acceso**: autenticado
 
-**SQL** (un único query con 6 JOINs):
+**SQL** (un único query con 7 JOINs):
 ```sql
 SELECT e.id, e.venta_id, e.titular_mail, e.costo,
        e.evento_id, e.sector_id, e.consumido,
+       v.estado_id           AS venta_estado_id,
        ev.fecha              AS evento_fecha,
        ev.cancelado          AS evento_cancelado,
        el.nombre              AS equipo_local_nombre,
@@ -21,6 +22,7 @@ SELECT e.id, e.venta_id, e.titular_mail, e.costo,
        q.creado_en            AS qr_creado_en,
        q.activo               AS qr_activo
 FROM Entrada e
+JOIN Venta    v   ON v.id   = e.venta_id AND v.estado_id >= 2
 JOIN Evento   ev  ON ev.id  = e.evento_id
 JOIN Equipo   el  ON el.id  = ev.equipo_local_id
 JOIN Equipo   ev2 ON ev2.id = ev.equipo_visitante_id
@@ -30,6 +32,10 @@ LEFT JOIN Qr  q   ON q.entrada_id = e.id AND q.activo = TRUE
 WHERE e.titular_mail = ?
 ORDER BY ev.fecha DESC, e.id
 ```
+
+**`JOIN Venta v ON ... AND v.estado_id >= 2`**: filtra entradas de ventas PENDIENTE (estado 1). Solo aparecen entradas de ventas CONFIRMADA (2) o PAGA (3). Las entradas en el carrito sin pagar no se muestran aquí.
+
+**`venta_estado_id`**: expone el estado de la venta para que el frontend pueda mostrar el badge correcto y habilitar o deshabilitar acciones.
 
 **LEFT JOIN con Qr**: si no hay QR activo, los campos `qr_*` son NULL. En la respuesta, el campo `qr` del objeto es `null` si no hay QR.
 
@@ -41,6 +47,7 @@ ORDER BY ev.fecha DESC, e.id
   {
     "id": "uuid-entrada",
     "venta_id": "uuid-venta",
+    "venta_estado_id": 3,
     "titular_mail": "juan@example.com",
     "costo": 500.00,
     "evento_id": "uuid-evento",
@@ -63,6 +70,15 @@ ORDER BY ev.fecha DESC, e.id
   }
 ]
 ```
+
+**Lógica de badges en el frontend según `venta_estado_id`**:
+
+| `venta_estado_id` | `consumido` | `cancelado` | Badge | Acciones |
+|:-----------------:|:-----------:|:-----------:|-------|----------|
+| 2 | false | false | PROCESANDO (azul) | ninguna |
+| 3 | false | false | ACTIVA (verde) | transferir, QR |
+| 3 | true | — | CONSUMIDA (rojo) | ninguna |
+| 3 | — | true | BLOQUEADA (naranja) | ninguna |
 
 ---
 
