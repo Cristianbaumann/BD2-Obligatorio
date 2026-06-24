@@ -1,6 +1,7 @@
 # Secrets — nunca subir
 .env
 *.env
+ngrok.yml
 
 # Python
 __pycache__/
