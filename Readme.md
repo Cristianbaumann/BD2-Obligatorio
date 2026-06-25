@@ -86,11 +86,11 @@ BD2-Obligatorio/
 
 ```env
 # Base de datos
-DB_HOST=mysql.reto-ucu.net
-DB_PORT=50006
-DB_USER=ic_g5_admin
+DB_HOST=<host>
+DB_PORT=<port>
+DB_USER=<usuario>
 DB_PASSWORD=<password>
-DB_NAME=IC_Grupo5
+DB_NAME=<nombre_db>
 
 # Auth0
 AUTH0_DOMAIN="dev-ks16wg37q4clzdxd.us.auth0.com"
@@ -123,17 +123,17 @@ App disponible en `http://localhost:5173`
 
 ### Base de datos
 
-Ejecutar en orden (solo la primera vez):
+Ejecutar en orden (solo la primera vez). Usar los valores de `DB_HOST`, `DB_PORT`, `DB_USER` y `DB_NAME` del `.env`:
 
 ```bash
 # 1. Crear tablas
-mysql -h mysql.reto-ucu.net -P 50006 -u ic_g5_admin -p IC_Grupo5 < backend/sql/01_schemas.sql
+mysql -h <DB_HOST> -P <DB_PORT> -u <DB_USER> -p <DB_NAME> < backend/sql/01_schemas.sql
 
 # 2. Cargar datos iniciales
-mysql -h mysql.reto-ucu.net -P 50006 -u ic_g5_admin -p IC_Grupo5 < backend/sql/02_seed_data.sql
+mysql -h <DB_HOST> -P <DB_PORT> -u <DB_USER> -p <DB_NAME> < backend/sql/02_seed_data.sql
 
 # 3. Crear admins bootstrap
-mysql -h mysql.reto-ucu.net -P 50006 -u ic_g5_admin -p IC_Grupo5 < backend/sql/03_admin_seed.sql
+mysql -h <DB_HOST> -P <DB_PORT> -u <DB_USER> -p <DB_NAME> < backend/sql/03_admin_seed.sql
 ```
 
 ---
