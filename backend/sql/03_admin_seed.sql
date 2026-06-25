@@ -86,12 +86,13 @@ VALUES ('admin.canada@ticketing.com', 'Canadá', '2026-01-01');
 
 -- =============================================================
 -- EJEMPLO FUNCIONAL — reemplazar mail y pais_sede, descomentar y ejecutar
+-- (NO descomentar si se usa con docker-compose, ejecutar manualmente)
 -- =============================================================
 
-SET @mail = 'cristian@ejemplo.com';
-SET @pais = 'Canadá';
-SET @hoy  = CURDATE();
+-- SET @mail = 'cristian@ejemplo.com';
+-- SET @pais = 'Canadá';
+-- SET @hoy  = CURDATE();
 
-UPDATE Usuario SET rol = 'ADMIN' WHERE mail = @mail;
-DELETE FROM UsuarioFinal WHERE usuario_mail = @mail;
-INSERT INTO Admin (usuario_mail, pais_sede, fecha_asignacion_cargo) VALUES (@mail, @pais, @hoy);
+-- UPDATE Usuario SET rol = 'ADMIN' WHERE mail = @mail;
+-- DELETE FROM UsuarioFinal WHERE usuario_mail = @mail;
+-- INSERT INTO Admin (usuario_mail, pais_sede, fecha_asignacion_cargo) VALUES (@mail, @pais, @hoy);
